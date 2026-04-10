@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "easyrag"
+version = "0.1.0"
+description = "Standalone EasyRAG core library for repository indexing and retrieval."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "httpx>=0.28.0",
+  "networkx>=3.3",
+  "numpy>=2.0.0",
+  "openai>=1.0.0",
+  "pypdf>=5.0.0",
+  "pydantic>=2.8.0",
+  "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+hnsw = [
+  "hnswlib>=0.8.0",
+]
+postgres = [
+  "psycopg[binary]>=3.2.0",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["easyrag*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
