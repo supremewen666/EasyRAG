@@ -18,7 +18,14 @@ source files or raw texts
   -> evaluation and optimization loops
 ```
 
-This page does not try to replace the stage overviews. It reconnects them.
+This page does not replace the stage overviews. It reconnects them.
+
+## What you will learn
+
+- which subsystem owns each major stage boundary
+- where the public `EasyRAG` lifecycle sits in the codebase
+- how storage and backend swaps fit under the same mental model
+- which production concerns sit around the happy-path pipeline
 
 ## The main subsystems
 
@@ -26,9 +33,9 @@ This page does not try to replace the stage overviews. It reconnects them.
 
 The orchestrator lives in `easyrag/rag/orchestrator.py` and exposes the public `EasyRAG` lifecycle. It is the easiest place to answer questions such as:
 
-- how does storage initialization happen?
-- which helpers are public?
-- what does `aquery()` return?
+- how storage initialization happens
+- which helpers are public
+- what `aquery()` returns
 
 ### Loading and indexing
 
@@ -66,9 +73,20 @@ The useful architectural idea is that graph signals are another retrieval aid, n
 
 ### Storage
 
-The storage layer hides the difference between local-first persistence and production-style bundles. The rest of the pipeline can keep thinking in documents, chunks, vectors, and graph records even when the backing implementation changes.
+The storage layer hides the difference between local-first persistence and production-style bundles. The rest of the pipeline can keep thinking in documents, chunks, vectors, summaries, and graph records even when the backing implementation changes.
 
-That stability is one of the main teaching goals of the repository.
+## Production concerns
+
+The happy-path pipeline is only part of a real system. Production systems also care about:
+
+- observability and tracing
+- caching
+- retry and timeout policy
+- fallback behavior when one provider or retrieval path is weak
+- local versus production backend swaps
+- operational signals that later feed evaluation and optimization
+
+These concerns should not replace the stage model, but they should sit visibly around it.
 
 ## The stable teaching interfaces
 
@@ -79,20 +97,22 @@ If you keep only a few names in your head, keep these:
 - `ChunkingConfig`
 - `QueryResult`
 
-Those interfaces connect the docs, notebooks, and real code better than any directory tree diagram would.
+Those interfaces connect the docs, notebooks, and codebase better than any directory tree diagram would.
 
 ## Notebook handoff
 
-The architecture-side notebook companion is:
+The architecture-side notebook sequence is now:
 
-- [08_01_storage_backend_lab.ipynb](../notebooks/08_system_architecture/08_01_storage_backend_lab.ipynb)
+- [08_01_code_map_and_runtime_flow.ipynb](../notebooks/08_system_architecture/08_01_code_map_and_runtime_flow.ipynb)
+- [08_02_local_vs_production_backends.ipynb](../notebooks/08_system_architecture/08_02_local_vs_production_backends.ipynb)
+- [08_03_observability_and_fallbacks.ipynb](../notebooks/08_system_architecture/08_03_observability_and_fallbacks.ipynb)
 
 For code-oriented reading, the best companions are:
 
 - [engineering/20-code-map.md](engineering/20-code-map.md)
-- [engineering/24-local-vs-production-backends.md](engineering/24-local-vs-production-backends.md)
+- [engineering/25-local-vs-production-backends.md](engineering/25-local-vs-production-backends.md)
 
 ## Where to go next
 
 - Return to [00-overview.md](00-overview.md) if you want the stage-by-stage path again.
-- Use the engineering pages when you want implementation detail instead of teaching-level structure.
+- Use the engineering pages when you want implementation detail instead of the teaching-level map.

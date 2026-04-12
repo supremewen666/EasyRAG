@@ -1,10 +1,10 @@
 # Optimization Overview
 
-This chapter is a roadmap chapter. It explains what comes after evaluation, but it is intentionally docs-only in the current repository. The goal is to give the learning path a clear next step without pretending that all optimization material is already built out.
+This chapter is a roadmap chapter. It explains what comes after evaluation, but it is intentionally docs-only in the current repository. The goal is to make the next step concrete without pretending that every optimization lab already exists.
 
 ## The learning question
 
-Once evaluation has shown where the system is weak, which levers can you actually change, and how should you choose them without falling into random trial-and-error tuning?
+Once evaluation has shown where the system is weak, which levers can you actually change, and how do you choose them without drifting into random trial-and-error tuning?
 
 ## The optimization flow
 
@@ -12,50 +12,111 @@ Once evaluation has shown where the system is weak, which levers can you actuall
 evaluation result
   -> identify the weak stage
   -> choose one controlled lever
-  -> rerun the relevant eval
+  -> rerun the relevant evaluation slice
   -> compare quality, latency, and cost
   -> keep or discard the change
 ```
 
 The key habit is simple: optimize after measurement, not before it.
 
-## Where optimization can happen
+## What you will learn
 
-EasyRAG exposes several distinct layers where tuning decisions can matter:
+- which layers of the EasyRAG pipeline are realistic tuning targets
+- how to separate quality tuning from latency and cost tuning
+- why each tuning pass should have a matching evaluation loop
+- what later optimization notebooks should eventually expand into
 
-- data quality and metadata discipline
-- chunking strategy
+## Optimization layers
+
+### 1. Data normalization and cleaning
+
+Sometimes the best optimization is earlier than retrieval:
+
+- better normalization
+- better boilerplate removal
+- cleaner metadata
+- more stable document IDs
+
+If the inputs improve, later retrieval often improves without any retrieval-specific change.
+
+### 2. Chunking
+
+Chunk tuning changes the retrieval unit itself:
+
+- chunk size
+- overlap
+- heading awareness
+- parent-child strategies
+- semantic versus structural chunking
+
+This is often the first place to revisit when recall feels noisy.
+
+### 3. Embedding and index tuning
+
+Once chunking is stable, you can tune:
+
 - embedding model choice
-- vector backend or indexing parameters
-- retrieval mode selection
-- fusion and rerank policy
-- evidence selection for generation
-- context packing and prompting policy
+- embedding cache policy
+- vector index parameters
+- incremental versus full rebuild behavior
+- namespace and metadata indexing choices
 
-Each layer changes a different part of the pipeline, so each layer needs the matching evaluation loop.
+### 4. Retrieval tuning
 
-## Common optimization goals
+This is where many industrial systems spend most of their time:
 
-In practice, you are usually trading between a few clear goals:
+- query normalization policy
+- rewrite or multi-query policy
+- hybrid retrieval balance
+- metadata filtering
+- rerank depth
+- thresholding and fallback behavior
 
-- better recall
-- better precision
-- stronger grounding
-- lower latency
-- lower cost
-- more stable behavior
+### 5. Prompt and answer tuning
 
-Those goals do not always move together. A heavier reranker might improve ranking while making latency worse. Larger evidence sets might improve recall while hurting grounding.
+If retrieval is already healthy, the next gains may come from:
+
+- evidence selection
+- context packing
+- prompt format
+- abstention rules
+- structured output policy
+
+### 6. Latency and cost tuning
+
+Not every improvement is about answer quality:
+
+- cache hit rate
+- expensive provider calls
+- rerank depth versus latency
+- adaptive top-k
+- batching and concurrency
+
+Those changes still need evaluation. They just optimize a different objective.
+
+## Industrial optimization patterns
+
+Common optimization patterns in production systems include:
+
+- normalization tuning before indexing
+- chunk-strategy tuning from retrieval failures
+- score calibration and threshold tuning
+- metadata-filter refinement
+- rerank depth tuning
+- adaptive top-k
+- cache strategy tuning
+- multi-stage retrieval with graceful fallback
+- regression checks before rollout
+
+The main discipline is to change one lever at a time and rerun the relevant evaluation slice.
 
 ## What this chapter is and is not
 
-This chapter is a roadmap, not a finished lab pack.
+This chapter is a roadmap, not a finished notebook set.
 
-It is here to make one point explicit: evaluation is not the end of the story. Once you know what is weak, you need a controlled way to improve it.
-
-It is not here to pretend the repository already contains a complete optimization curriculum. That material should grow out of the evaluation notebooks instead of being added as isolated tuning tricks.
+It is here to make one point explicit: evaluation is not the end of the story. Once you know what is weak, you need a controlled way to improve it. The future notebook work should grow out of the six layers above rather than appear as isolated tuning tricks.
 
 ## Where to go next
 
-- Use [06-evaluation-overview.md](06-evaluation-overview.md) as the operational prerequisite for this chapter.
+- Use [06-evaluation-overview.md](06-evaluation-overview.md) as the prerequisite for this chapter.
 - Read [08-system-architecture-overview.md](08-system-architecture-overview.md) if you want to see where those optimization levers sit in the larger system.

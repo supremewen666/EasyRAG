@@ -10,16 +10,23 @@ What exactly should you measure in a RAG pipeline, and how do you use those meas
 
 ```text
 loaded corpus and query set
-  -> tiny eval set with gold evidence or expected behavior
+  -> evaluation set construction
   -> retrieval metrics
-  -> grounding and faithfulness checks
-  -> answer usefulness checks
+  -> grounding and usefulness checks
+  -> latency, cost, and regression checks
   -> eval-driven debugging
 ```
 
 The key idea is that evaluation is not one metric and not one stage at the very end.
 
-## Why RAG evaluation needs layers
+## What you will learn
+
+- why RAG evaluation has to be layered
+- which artifacts EasyRAG already exposes for inspection
+- how offline and online evaluation answer different questions
+- why optimization should start from evaluation findings, not intuition alone
+
+## Layered evaluation
 
 Different problems show up in different places:
 
@@ -30,9 +37,7 @@ Different problems show up in different places:
 
 If you only score the final answer, those failure modes collapse into one blurry signal.
 
-## What can be evaluated in EasyRAG
-
-EasyRAG already exposes several artifacts that make evaluation practical:
+EasyRAG already exposes several artifacts that make layered evaluation practical:
 
 - canonical documents
 - chunks
@@ -40,69 +45,88 @@ EasyRAG already exposes several artifacts that make evaluation practical:
 - retrieval metadata
 - `QueryResult`
 
-Those objects give you a way to inspect what the system saw, what it searched, what it returned, and what a downstream answer layer used later.
+Those objects let you inspect what the system saw, what it searched, what it returned, and what the downstream answer layer did later.
 
-## A small eval set is a good teaching tool
+## Metric families
 
-The first useful evaluation set is usually small and explicit:
-
-- one query
-- one or more gold evidence records
-- an expected answer shape or a grounded claim list
-
-That is enough to teach the habit of checking whether retrieval found the right evidence before you start tuning prompts or providers.
-
-## The main metric families
-
-### Retrieval quality
+### Retrieval metrics
 
 These metrics ask whether the system found the right evidence:
 
 - hit rate
 - recall@k
 - precision@k
-- MRR or other ranking-aware metrics
+- MRR or NDCG
 - candidate coverage across retrieval modes
 
-### Grounding and faithfulness
+### Grounding and answer checks
 
 These checks ask whether the answer stayed tied to the evidence:
 
 - is each claim supported by a citation?
 - does the answer drift beyond the retrieved snippets?
 - did the answer stay useful without inventing unsupported detail?
+- does the answer follow the expected abstention policy when evidence is weak?
 
-### Operational behavior
+### Operational checks
 
-For real systems, evaluation also includes:
+Real systems also need:
 
 - latency
-- cost
-- stability across runs or provider settings
+- throughput
+- cost per query
+- stability across runs
+- regression checks before and after a change
 
-Those do not replace retrieval or grounding metrics, but they matter once the core behavior is acceptable.
+These do not replace retrieval or grounding metrics, but they matter once the core behavior is acceptable.
+
+## Industrial evaluation methods
+
+Industrial RAG evaluation usually combines several methods:
+
+- a small golden set with explicit evidence expectations
+- synthetic or bootstrapped evaluation items when coverage is thin
+- pairwise answer comparison
+- citation verification
+- human review for edge cases
+- latency and throughput SLO tracking
+- cost tracking by stage or by query
+- regression suites that run before and after retrieval or prompting changes
+
+That is why evaluation sits before optimization in the mainline. It tells you which layer deserves the next tuning pass.
+
+## Offline and online evaluation
+
+Offline evaluation is the fastest place to compare retrieval policies, ranking policies, or prompt variants against a known set of examples. Online evaluation matters once you care about real traffic, user tolerance, and operational behavior.
+
+You usually need both:
+
+- offline evaluation for fast iteration
+- online or shadow evaluation for behavior under realistic conditions
 
 ## Evaluation and debugging belong together
 
-Evaluation is not just a scorecard for a report. It is a way to localize problems:
+Evaluation is not just a scorecard. It is a localization tool:
 
-- low recall might point back to chunking or query rewriting
-- weak ranking might point to fusion or rerank policy
+- low recall can point back to chunking or query rewrite
+- weak ranking can point to fusion or rerank policy
 - good retrieval plus weak answers often points to context packing or prompting
+- unstable latency can point to provider, caching, or orchestration issues
 
-That is why the evaluation stage sits before optimization in the mainline.
+That is the bridge into the next chapter.
 
 ## Notebook handoff
 
-The evaluation notebooks now form a small sequence:
+The evaluation notebooks now form a fuller sequence:
 
-- [06_01_eval_basics.ipynb](../notebooks/06_evaluation/06_01_eval_basics.ipynb)
-- [06_02_build_tiny_eval_set.ipynb](../notebooks/06_evaluation/06_02_build_tiny_eval_set.ipynb)
+- [06_01_evaluation_basics.ipynb](../notebooks/06_evaluation/06_01_evaluation_basics.ipynb)
+- [06_02_building_a_tiny_eval_set.ipynb](../notebooks/06_evaluation/06_02_building_a_tiny_eval_set.ipynb)
 - [06_03_retrieval_metrics.ipynb](../notebooks/06_evaluation/06_03_retrieval_metrics.ipynb)
-- [06_04_grounding_and_faithfulness.ipynb](../notebooks/06_evaluation/06_04_grounding_and_faithfulness.ipynb)
+- [06_04_answer_grounding_and_faithfulness.ipynb](../notebooks/06_evaluation/06_04_answer_grounding_and_faithfulness.ipynb)
 - [06_05_eval_driven_debugging.ipynb](../notebooks/06_evaluation/06_05_eval_driven_debugging.ipynb)
+- [06_06_latency_cost_and_regression_checks.ipynb](../notebooks/06_evaluation/06_06_latency_cost_and_regression_checks.ipynb)
 
-They are intentionally compact, but together they complete the loop from retrieval and generation into measurement and diagnosis.
+Some of these are still lightweight scaffolds, but together they complete the loop from measurement to diagnosis.
 
 ## Where to go next
 

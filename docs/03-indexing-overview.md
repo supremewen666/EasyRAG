@@ -1,40 +1,37 @@
 # Indexing Overview
 
-This chapter explains what happens after documents have already been loaded and normalized. In EasyRAG, indexing is the phase that turns canonical `Document` objects into searchable workspace state.
+This chapter explains what happens after documents have already been loaded and normalized. In EasyRAG, indexing is the stage that turns canonical `Document` objects into searchable workspace state.
 
 ## The learning question
 
-How do loaded documents become chunks, summaries, vectors, graph signals, and on-disk artifacts that retrieval can actually use later?
+How does chunking turn loaded documents into retrievable units, then into embeddings, vector records, summaries, graph signals, and stored artifacts that retrieval can actually use later?
 
 ## The indexing flow
 
 ```text
 Document objects
-  -> chunk selection and chunk generation
-  -> summary generation
-  -> vector payloads
-  -> graph entities and relations
+  -> chunking
+  -> embedding generation
+  -> vector indexing
+  -> summaries and graph enrichment
   -> storage writes
   -> reusable workspace state
 ```
 
-This stage is what makes the corpus retrievable. Without it, retrieval has nothing structured to search over.
+That order is important. Chunking decides the retrieval unit. Embeddings represent that unit numerically. Vector indexing makes those embeddings searchable. Storage turns the whole bundle into something retrieval can reuse.
 
-## What indexing adds on top of loading
+## What you will learn
 
-The loading stage made the inputs clean and canonical. Indexing adds the derived artifacts that support later retrieval:
+- why indexing is more than "build the vector store"
+- why the stage order must stay `chunking -> embedding -> vector index`
+- how summaries, graph signals, and workspace artifacts fit beside dense retrieval
+- which industrial indexing patterns are worth making explicit
 
-- chunks for focused evidence retrieval
-- summaries for broader document-level access
-- vector records for dense or fallback search
-- graph signals for local and global retrieval paths
-- document and status records for persistent workspace management
+## Key concepts
 
-That is why "build the index" is not a housekeeping step. It is where raw documents become retrievable knowledge.
+### Chunking is the first real indexing decision
 
-## Chunking is the first real indexing decision
-
-EasyRAG makes chunking explicit through `chunk_documents()` and `ChunkingConfig`. The main strategies are:
+EasyRAG makes chunking explicit through `chunk_documents()` and `ChunkingConfig`. Common strategies include:
 
 - structured chunking for heading-rich material
 - semantic chunking for long continuous text when embeddings are available
@@ -42,17 +39,54 @@ EasyRAG makes chunking explicit through `chunk_documents()` and `ChunkingConfig`
 
 Chunking quality shapes everything that comes later. If the chunks are too broad, retrieval drags in noise. If the chunks are too thin, retrieval returns fragments with weak context.
 
-## Why summaries and graph signals appear here
+### Embeddings are a separate stage, not a hidden side effect
 
-Indexing does more than preserve the original text.
+Once chunks exist, they become embedding inputs. This boundary matters because embedding behavior depends on:
 
-### Summaries
+- the model you chose
+- the text you passed in
+- the normalization you applied before encoding
+- batching, caching, and provider behavior
 
-Summaries give retrieval a higher-level view of a document. That matters when a single chunk is too narrow but the document still clearly belongs in the candidate set.
+Keeping embeddings explicit makes later debugging much easier.
 
-### Graph signals
+### Vector indexing makes embeddings usable
 
-Entities and relations create another view of the corpus. They let graph-aware retrieval modes reason over neighborhoods and relations instead of relying only on chunk similarity.
+Embeddings are not retrievable by themselves. They still need:
+
+- an index structure
+- metadata-aware storage
+- namespace design
+- incremental rebuild rules
+
+That is why vector indexing deserves its own place in the curriculum.
+
+## Normalization Before Embedding
+
+Normalization appears again here because chunk text often needs one more pass before it becomes an embedding input.
+
+Typical indexing-side normalization includes:
+
+- removing repeated boilerplate that survived loading
+- stabilizing whitespace and punctuation
+- preserving useful headings while cleaning noisy separators
+- keeping chunk text consistent across rebuilds
+
+This matters because embedding models are sensitive to input shape. Two chunks that look almost the same to a human can still become less consistent vectors if the text is noisy in predictable ways.
+
+## Industry Patterns In Indexing
+
+Industrial indexing systems usually do more than "chunk and embed":
+
+- parent-child chunking
+- heading-aware chunking
+- semantic chunking when structure is weak
+- summary indexing for document-level recall
+- multi-representation indexing across title, summary, and body
+- metadata-filter-ready indexing
+- embedding caches
+- incremental indexing instead of full rebuilds
+- separate namespaces for chunk, summary, and graph-oriented records
 
 The useful mental model is that indexing creates several retrievable views of the same source material.
 
@@ -64,21 +98,27 @@ In local mode, a finished build usually leaves behind artifacts for:
 - summaries
 - vector state
 - graph state
-- document status tracking
-- compatibility snapshots
+- status tracking
+- compatibility or maintenance snapshots
 
-That is why a finished workspace feels larger than a single vector table. EasyRAG builds a bundle of coordinated retrieval structures.
+That is why a finished workspace feels larger than a single vector table. EasyRAG builds a coordinated artifact bundle, not just one searchable list.
 
 ## Notebook handoff
 
-The direct notebook companions to this chapter are:
+The indexing notebooks now follow the stage order directly:
 
-- [03_01_build_index.ipynb](../notebooks/03_indexing/03_01_build_index.ipynb), which rebuilds a small workspace and verifies it with one query
-- [03_02_chunking_strategy_lab.ipynb](../notebooks/03_indexing/03_02_chunking_strategy_lab.ipynb), which compares chunking behavior more directly
+- [03_01_chunking_principles.ipynb](../notebooks/03_indexing/03_01_chunking_principles.ipynb)
+- [03_02_chunking_quality_analysis.ipynb](../notebooks/03_indexing/03_02_chunking_quality_analysis.ipynb)
+- [03_03_embeddings_basics.ipynb](../notebooks/03_indexing/03_03_embeddings_basics.ipynb)
+- [03_04_normalization_before_embedding.ipynb](../notebooks/03_indexing/03_04_normalization_before_embedding.ipynb)
+- [03_05_embedding_inputs_and_provider_behavior.ipynb](../notebooks/03_indexing/03_05_embedding_inputs_and_provider_behavior.ipynb)
+- [03_06_vector_index_basics.ipynb](../notebooks/03_indexing/03_06_vector_index_basics.ipynb)
+- [03_07_build_index_pipeline.ipynb](../notebooks/03_indexing/03_07_build_index_pipeline.ipynb)
+- [03_08_storage_and_workspace_artifacts.ipynb](../notebooks/03_indexing/03_08_storage_and_workspace_artifacts.ipynb)
 
-The first notebook answers "what does index building do?" The second answers "which chunking choice changed what?"
+Some are full walkthroughs today and some are still scaffolds, but the order is final.
 
 ## Where to go next
 
 - Continue with [04-retrieval-overview.md](04-retrieval-overview.md) once you want to inspect how the workspace is searched.
-- Read [engineering/21-indexing-pipeline.md](engineering/21-indexing-pipeline.md) if you want the code-oriented version of this stage.
+- Read [engineering/21-indexing-pipeline.md](engineering/21-indexing-pipeline.md) if you want the code-oriented version of the same stage.

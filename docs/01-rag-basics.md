@@ -88,5 +88,5 @@ The core concepts above map directly onto visible modules:
 ## Where to go next
 
 - Read [02-data-loading-overview.md](02-data-loading-overview.md) for the input side of the system.
-- Run [02_01_repo_loading.ipynb](../notebooks/02_data_loading/02_01_repo_loading.ipynb) to see canonical documents and chunk previews on a tiny corpus.
+- Run [02_01_repo_loading_basics.ipynb](../notebooks/02_data_loading/02_01_repo_loading_basics.ipynb) to see canonical documents and chunk previews on a tiny corpus.
 - Return to [00-overview.md](00-overview.md) if you want the full learning path again.

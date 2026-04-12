@@ -1,56 +1,79 @@
 # Overview
 
-This page is the front door to EasyRAG as a teaching repository. The goal is not to show every feature at once. The goal is to give you a stable mental model, show where the main code lives, and point you to the first runnable walkthrough in [00_quickstart.ipynb](../notebooks/00_overview/00_quickstart.ipynb).
+This page is the front door to EasyRAG as a teaching repository. It is meant to give you one stable map before you dive into individual modules, notebooks, or helper functions. The repository is easier to learn when each stage stays visible and the artifacts from that stage stay inspectable.
 
 ## The learning question
 
-What are the stages of a small RAG system, and how does EasyRAG make those stages visible instead of hiding them behind one opaque API call?
+What are the stages of a small RAG system, and how does EasyRAG make each stage visible instead of collapsing everything into one opaque API call?
 
 ## The end-to-end flow
-
-At a high level, EasyRAG follows one simple loop:
 
 ```text
 source files or raw texts
   -> canonical Document objects
   -> chunks, summaries, vectors, and graph state
-  -> query preprocessing
-  -> retrieval modes and ranking
-  -> grounded citations and diagnostics
+  -> query normalization and retrieval planning
+  -> ranked evidence and hydrated citations
   -> downstream answer generation
-  -> evaluation and optimization
+  -> evaluation
+  -> optimization
 ```
 
-That order matters. Retrieval quality depends on what was loaded and indexed earlier. Answer quality depends on what retrieval returned. Evaluation only becomes useful once you can inspect each stage separately.
+That order is the teaching backbone of the repo. Retrieval quality depends on what was loaded and indexed earlier. Generation quality depends on the evidence retrieval returned. Optimization only becomes useful after evaluation tells you which stage is weak.
 
-## What EasyRAG is
+## What you will learn here
 
-EasyRAG is a lightweight, teaching-first RAG core library for repository and local-document workflows. It keeps the scope intentionally narrow:
+- how the main docs and notebooks line up with the same pipeline
+- which objects are worth inspecting at each stage
+- where the current material is already runnable and where it is still a scaffold
+- how to move through the repo without treating it like a black box
 
-- load and normalize documents
-- chunk them into retrievable units
-- store searchable artifacts in local or production-style backends
-- retrieve chunks through multiple query modes
-- attach lightweight graph signals when helpful
-- hand back grounded results that are easy to inspect
+## Key concepts
 
-That makes the repository useful in two ways. You can learn the shape of a RAG system from it, and you can also use it as a compact reference implementation when you need to extend or debug one.
+### Stage boundaries matter
 
-## What EasyRAG does not hide
+EasyRAG is easier to reason about when you keep a few boundaries fixed:
 
-EasyRAG is easiest to learn when you keep these boundaries visible:
-
-- data loading happens before indexing
+- loading happens before indexing
 - indexing happens before retrieval
 - retrieval returns evidence, not a polished final answer
-- evaluation is not a separate afterthought; it is how you tell which layer is weak
-- optimization only makes sense once evaluation has localized the problem
+- evaluation is a first-class stage, not a late add-on
+- optimization starts after measurement, not before it
 
-This is close to the step-by-step teaching rhythm used in [pguso/rag-from-scratch](https://github.com/pguso/rag-from-scratch): move through the pipeline in order, inspect each artifact, and only then stack on the next concept.
+### The public teaching objects are small on purpose
 
-## How the mainline is organized
+If you keep only a few names in your head at first, keep these:
 
-The documentation now follows the pipeline directly:
+- `Document`
+- `ChunkingConfig`
+- `QueryParam`
+- `QueryResult`
+
+They connect the docs, notebooks, and codebase better than a long directory listing ever could.
+
+### Docs and notebooks tell the same story
+
+The docs explain the stage. The notebooks show the same stage in a runnable or scaffolded form. That mirror is deliberate. It keeps the repository close to the step-by-step teaching rhythm used in [pguso/rag-from-scratch](https://github.com/pguso/rag-from-scratch): move through the pipeline in order, inspect intermediate artifacts, and only then add another layer.
+
+## What is complete and what is still lightweight
+
+The repo now has one stable curriculum shape, but not every notebook is equally deep yet.
+
+- `01-rag-basics.md` is a docs-only vocabulary chapter
+- `07-optimization-overview.md` is a docs-only roadmap chapter for now
+- several stage notebooks are full walkthroughs
+- several newer notebooks are intentionally scaffolded so the directory tree is stable before every lab is fully built out
+
+That is not accidental. The structure is final first, then the deeper stage labs can grow inside it.
+
+## Notebook handoff
+
+Start here if you want the smallest runnable loop:
+
+- [00_01_quickstart_end_to_end.ipynb](../notebooks/00_overview/00_01_quickstart_end_to_end.ipynb) for the compact end-to-end path
+- [00_02_observing_rag_artifacts.ipynb](../notebooks/00_overview/00_02_observing_rag_artifacts.ipynb) for the artifact-level companion
+
+Then move through the mainline docs in order:
 
 1. [01-rag-basics.md](01-rag-basics.md)
 2. [02-data-loading-overview.md](02-data-loading-overview.md)
@@ -61,20 +84,8 @@ The documentation now follows the pipeline directly:
 7. [07-optimization-overview.md](07-optimization-overview.md)
 8. [08-system-architecture-overview.md](08-system-architecture-overview.md)
 
-The notebook tree mirrors the same stages, so the docs and runnable walkthroughs tell the same story instead of drifting apart.
-
-## Start with the quickstart
-
-The first runnable walkthrough lives in [00_quickstart.ipynb](../notebooks/00_overview/00_quickstart.ipynb). It is intentionally small:
-
-- Path A runs with deterministic stubs and no API keys
-- Path B keeps the same lifecycle but shows where real providers plug in
-- the notebook stays close to the public `EasyRAG` API, not to private helper internals
-
-If you are new to the repo, run the stub path first. It gives you the orchestration shape before any provider configuration noise shows up.
-
 ## Where to go next
 
-- Read [01-rag-basics.md](01-rag-basics.md) for the minimal vocabulary: `Document`, chunks, citations, and `QueryResult`.
-- Continue with [02-data-loading-overview.md](02-data-loading-overview.md) when you want to see how raw inputs become canonical records.
-- Keep [notebooks/README.md](../notebooks/README.md) open if you prefer to move stage by stage through runnable material.
+- Read [01-rag-basics.md](01-rag-basics.md) if you want the smallest vocabulary first.
+- Continue with [02-data-loading-overview.md](02-data-loading-overview.md) if you want to see how raw inputs become canonical records.
+- Keep [notebooks/README.md](../notebooks/README.md) open if you prefer to move through the curriculum stage by stage.
