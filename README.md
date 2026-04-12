@@ -1,6 +1,6 @@
 # EasyRAG
 
-![logo](./logo.png)
+![logo](./new_logo.png)
 
 EasyRAG 是一个面向教学与工程实践的轻量级 RAG 学习项目。它把一个小型 RAG 系统拆成清晰可见的阶段: 数据加载、索引、检索、生成、评估、优化与系统架构，并用 `docs/`、Jupyter notebooks 和一套可阅读的核心代码，把这些阶段逐步展开。
 
