@@ -2,26 +2,19 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Callable
 
 from easyrag.config import get_rag_working_dir, get_rag_workspace
 from easyrag.rag import EasyRAG, QueryParam
+from easyrag.support.async_utils import run_sync
 from easyrag.support.optional_deps import tool
 
 
 def _run_async(awaitable: object) -> object:
     """Run async EasyRAG calls from synchronous helper wrappers."""
 
-    try:
-        return asyncio.run(awaitable)
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(awaitable)
-        finally:
-            loop.close()
+    return run_sync(awaitable)
 
 
 def _serialize_citations(citations: list[dict[str, str]]) -> str:
@@ -79,13 +72,10 @@ def search_docs_tool(query: str) -> str:
                 ),
             )
         )
-    except Exception:
-        result = None
     finally:
         _run_async(rag.finalize_storages())
 
-    serialized = [] if result is None else list(result.citations)
-    return _serialize_citations(serialized)
+    return _serialize_citations(list(result.citations))
 
 
 def get_default_rag_tool():

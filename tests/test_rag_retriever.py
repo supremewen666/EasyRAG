@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -16,7 +17,7 @@ import numpy as np
 from easyrag.support.optional_deps import Document
 from easyrag.rag import EasyRAG, KGExtractionConfig, QueryParam
 from easyrag.rag.indexing import ChunkingConfig, build_vector_index, chunk_documents, load_repo_documents, rebuild_document_index
-from easyrag.tools import create_search_docs_tool
+from easyrag.tools import create_search_docs_tool, search_docs_tool
 from scripts import build_index
 
 _KEYWORDS = [
@@ -581,6 +582,50 @@ class IndexingHelperTestCase(unittest.TestCase):
             self.assertIn("query rewriting", results.citations[0]["snippet"])
             self.assertIn("architecture", tool_results)
 
+    def test_search_tool_runs_inside_existing_event_loop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="tool-loop",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
+            _run(rag.initialize_storages())
+            try:
+                _run(
+                    rag.ainsert(
+                        "# Architecture\nEasyRAG uses query rewriting for workflow orchestration.\n",
+                        ids=["doc::architecture"],
+                        file_paths=["docs/architecture.md"],
+                    )
+                )
+                tool = create_search_docs_tool(lambda: rag, default_mode="naive", rewrite_enabled=False, mqe_enabled=False)
+
+                async def invoke_tool() -> str:
+                    return tool.invoke({"query": "What uses query rewriting?"})
+
+                tool_results = _run(invoke_tool())
+            finally:
+                _run(rag.finalize_storages())
+
+        self.assertIn("query rewriting", tool_results)
+
+    def test_search_docs_tool_propagates_query_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "EASYRAG_WORKING_DIR": tmp_dir,
+                    "EASYRAG_WORKSPACE": "tool-errors",
+                },
+                clear=False,
+            ):
+                with mock.patch("easyrag.tools.EasyRAG.initialize_storages", new=mock.AsyncMock()):
+                    with mock.patch("easyrag.tools.EasyRAG.finalize_storages", new=mock.AsyncMock()):
+                        with mock.patch("easyrag.tools.EasyRAG.aquery", new=mock.AsyncMock(side_effect=RuntimeError("boom"))):
+                            with self.assertRaisesRegex(RuntimeError, "boom"):
+                                search_docs_tool.invoke({"query": "What uses query rewriting?"})
+
 
 class BuildIndexScriptTestCase(unittest.TestCase):
     """Verify the build script populates the EasyRAG workspace."""
@@ -616,6 +661,70 @@ class BuildIndexScriptTestCase(unittest.TestCase):
             self.assertIn("workspace=demo", output)
             self.assertIn("vector_backend=fallback_token", output)
             self.assertTrue((repo_root / ".easyrag" / "rag_storage" / "demo" / "kv" / "documents.json").exists())
+
+    def test_build_index_script_runs_inside_existing_event_loop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo_root = Path(tmp_dir) / "repo"
+            docs_dir = repo_root / "docs"
+            docs_dir.mkdir(parents=True)
+            (docs_dir / "architecture.md").write_text(
+                "# Architecture\nEasyRAG connects indexing, retrieval, and query rewriting.\n",
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "EASYRAG_REPO_ROOT": str(repo_root),
+                    "EASYRAG_DATA_DIR": str(repo_root / ".easyrag"),
+                    "EASYRAG_INDEX_PATH": str(repo_root / ".easyrag" / "rag_index.json"),
+                    "EASYRAG_WORKING_DIR": str(repo_root / ".easyrag" / "rag_storage"),
+                    "EASYRAG_WORKSPACE": "loop",
+                    "OPENAI_API_KEY": "",
+                },
+                clear=False,
+            ):
+                async def run_script() -> None:
+                    with contextlib.redirect_stdout(stdout):
+                        build_index.main([])
+
+                _run(run_script())
+
+            output = stdout.getvalue()
+            self.assertIn("documents=1", output)
+            self.assertIn("workspace=loop", output)
+
+    def test_build_index_delete_refreshes_legacy_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            repo_root = Path(tmp_dir) / "repo"
+            docs_dir = repo_root / "docs"
+            docs_dir.mkdir(parents=True)
+            (docs_dir / "architecture.md").write_text(
+                "# Architecture\nEasyRAG connects indexing, retrieval, and query rewriting.\n",
+                encoding="utf-8",
+            )
+
+            index_path = repo_root / ".easyrag" / "rag_index.json"
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "EASYRAG_REPO_ROOT": str(repo_root),
+                    "EASYRAG_DATA_DIR": str(repo_root / ".easyrag"),
+                    "EASYRAG_INDEX_PATH": str(index_path),
+                    "EASYRAG_WORKING_DIR": str(repo_root / ".easyrag" / "rag_storage"),
+                    "EASYRAG_WORKSPACE": "demo",
+                    "OPENAI_API_KEY": "",
+                },
+                clear=False,
+            ):
+                build_index.main([])
+                before_delete = json.loads(index_path.read_text(encoding="utf-8"))
+                build_index.main(["--action", "delete", "--doc-id", "doc::docs-architecture-md"])
+                after_delete = json.loads(index_path.read_text(encoding="utf-8"))
+
+            self.assertEqual(len(before_delete), 1)
+            self.assertEqual(after_delete, [])
 
     def test_rebuild_document_index_full_sync_removes_stale_docs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

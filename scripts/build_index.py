@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import asyncio
 import sys
 from pathlib import Path
 
@@ -14,19 +13,14 @@ if str(PROJECT_ROOT) not in sys.path:
 from easyrag.config import get_rag_working_dir, get_rag_workspace, get_repo_root  # noqa: E402
 from easyrag.rag import EasyRAG  # noqa: E402
 from easyrag.rag.indexing import rebuild_document_index  # noqa: E402
+from easyrag.rag.indexing.maintenance import write_legacy_snapshot  # noqa: E402
+from easyrag.support.async_utils import run_sync  # noqa: E402
 
 
 def _run_async(awaitable: object) -> object:
     """Run async EasyRAG operations from the build script."""
 
-    try:
-        return asyncio.run(awaitable)
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(awaitable)
-        finally:
-            loop.close()
+    return run_sync(awaitable)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -81,6 +75,13 @@ def main(argv: list[str] | None = None) -> None:
             aggregate = _run_async(rag.get_stats())
         finally:
             _run_async(rag.finalize_storages())
+        if targeted_doc_ids:
+            remaining_documents = [
+                document
+                for document in EasyRAG.load_repo_documents(get_repo_root())
+                if str(document.metadata.get("doc_id", "")).strip() not in set(targeted_doc_ids)
+            ]
+            write_legacy_snapshot(remaining_documents)
         _print_summary(rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids)
         return
 

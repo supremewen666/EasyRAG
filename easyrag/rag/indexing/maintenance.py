@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import re
 from pathlib import Path
+from typing import Sequence
 
 from easyrag.config import get_rag_index_path, get_rag_working_dir, get_rag_workspace, get_repo_root
 from easyrag.rag.indexing.chunking import ChunkingConfig, chunk_documents
 from easyrag.rag.indexing.loaders import load_repo_documents
+from easyrag.support.async_utils import run_sync
 from easyrag.support.optional_deps import Document
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
@@ -19,14 +20,7 @@ _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
 def _run_async(awaitable: object) -> object:
     """Run an async EasyRAG call from synchronous indexing helpers."""
 
-    try:
-        return asyncio.run(awaitable)
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(awaitable)
-        finally:
-            loop.close()
+    return run_sync(awaitable)
 
 
 def _resolve_legacy_storage_location() -> tuple[Path, str]:
@@ -47,7 +41,7 @@ def _tokenize(text: str) -> list[str]:
     return _TOKEN_PATTERN.findall(text.lower())
 
 
-def _write_legacy_snapshot(documents: list[Document]) -> None:
+def write_legacy_snapshot(documents: Sequence[Document]) -> None:
     """Write the compatibility JSON snapshot for local inspection and tests."""
 
     payload = [
@@ -113,7 +107,7 @@ def build_vector_index(documents: list[Document]) -> None:
 
     working_dir, workspace = _resolve_legacy_storage_location()
     _run_async(_build_workspace(documents, working_dir, workspace))
-    _write_legacy_snapshot(documents)
+    write_legacy_snapshot(documents)
 
 
 def rebuild_document_index(
@@ -135,8 +129,8 @@ def rebuild_document_index(
             full_sync=not normalized_doc_ids,
         )
     )
-    _write_legacy_snapshot(documents)
+    write_legacy_snapshot(documents)
     return get_rag_working_dir() / get_rag_workspace()
 
 
-__all__ = ["build_vector_index", "rebuild_document_index"]
+__all__ = ["build_vector_index", "rebuild_document_index", "write_legacy_snapshot"]
