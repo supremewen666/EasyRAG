@@ -1,31 +1,15 @@
 # Indexing Overview
 
-This chapter explains what happens before retrieval can work at all. In EasyRAG, indexing is the phase that turns source material into searchable workspace state. If you skip this phase conceptually, retrieval looks like magic. If you understand it, retrieval becomes much easier to reason about.
+This chapter explains what happens after documents have already been loaded and normalized. In EasyRAG, indexing is the phase that turns canonical `Document` objects into searchable workspace state.
 
-The core question for this page is: how do raw documents become chunks, summaries, vectors, and graph signals that later support grounded results?
+## The learning question
 
-## Why Indexing Exists Before Retrieval
+How do loaded documents become chunks, summaries, vectors, graph signals, and on-disk artifacts that retrieval can actually use later?
 
-Retrieval does not start from nothing. Before a question can be answered with grounded citations, the system needs prepared knowledge artifacts:
-
-- documents with stable metadata
-- chunk boundaries
-- summary records
-- vector entries or fallback searchable records
-- optional graph entities and relations
-- persistent workspace files
-
-That is what indexing creates. It is the preparation phase that transforms source content into retrievable structure.
-
-This is why "build the index" is not a housekeeping step. It is the moment where the corpus becomes searchable knowledge.
-
-## The Indexing Pipeline In One Flow
-
-At a high level, indexing in EasyRAG looks like this:
+## The indexing flow
 
 ```text
-source files or manual texts
-  -> Document objects
+Document objects
   -> chunk selection and chunk generation
   -> summary generation
   -> vector payloads
@@ -34,151 +18,67 @@ source files or manual texts
   -> reusable workspace state
 ```
 
-That flow is implemented in small, separate modules so that each transformation stays visible.
+This stage is what makes the corpus retrievable. Without it, retrieval has nothing structured to search over.
 
-## Loading And Preparing Documents
+## What indexing adds on top of loading
 
-EasyRAG supports two main entry paths into indexing:
+The loading stage made the inputs clean and canonical. Indexing adds the derived artifacts that support later retrieval:
 
-### Repository loading
+- chunks for focused evidence retrieval
+- summaries for broader document-level access
+- vector records for dense or fallback search
+- graph signals for local and global retrieval paths
+- document and status records for persistent workspace management
 
-`load_repo_documents()` discovers indexable repository files, reads them, and returns canonical `Document` objects with metadata such as:
+That is why "build the index" is not a housekeeping step. It is where raw documents become retrievable knowledge.
 
-- `title`
-- `path`
-- `relative_path`
-- `doc_id`
-- `source_type`
+## Chunking is the first real indexing decision
 
-For repository-shaped knowledge, this is usually the cleanest entry point because the metadata is derived automatically from the file system.
+EasyRAG makes chunking explicit through `chunk_documents()` and `ChunkingConfig`. The main strategies are:
 
-### Manual preparation
-
-`prepare_documents_for_insert()` and `EasyRAG.prepare_documents()` let you turn raw text plus explicit `ids` and `file_paths` into the same `Document` shape.
-
-This path matters when the corpus does not live as repository files yet. It is also the easiest way to teach custom document ingestion in a notebook.
-
-The key insight is that both paths converge on the same `Document` abstraction. Indexing does not care whether the text came from `docs/architecture.md` or a hand-constructed in-memory example once it has canonical metadata.
-
-## From Documents To Chunks
-
-Chunking is one of the most important decisions in the entire system. Retrieval usually works over chunks rather than over whole documents because smaller units make it easier to return focused evidence.
-
-EasyRAG makes this explicit through `chunk_documents()` and `ChunkingConfig`.
-
-The main strategies are:
-
-- structured chunking for heading-rich documents
-- semantic chunking for continuous text when embeddings are available
+- structured chunking for heading-rich material
+- semantic chunking for long continuous text when embeddings are available
 - sliding-window chunking as a robust fallback
 
-In practice, this means the same repository can contain multiple chunking behaviors:
+Chunking quality shapes everything that comes later. If the chunks are too broad, retrieval drags in noise. If the chunks are too thin, retrieval returns fragments with weak context.
 
-- Markdown architecture notes often become structured chunks
-- simple text notes may fall back to sliding windows
-- longer continuous inputs can use semantic boundaries when embeddings are present
+## Why summaries and graph signals appear here
 
-This is why indexing quality shapes retrieval quality. A weak chunking decision makes later ranking and fusion harder than it needs to be.
-
-## What The Ingestion Pipeline Creates
-
-Once documents are chunked, the indexing pipeline creates several derived artifacts:
-
-- document records
-- chunk records
-- summary records
-- vector payloads for chunks and summaries
-- graph nodes and edges
-- semantic relation records
-- document status records
-
-The important thing to remember is that indexing is not just "store embeddings." EasyRAG builds a richer workspace than a single vector table. That richer structure is what enables multiple retrieval modes later.
-
-## Why Summaries And Graph Signals Appear During Indexing
-
-Indexing does more than preserve the original text. It also creates higher-level retrieval aids.
+Indexing does more than preserve the original text.
 
 ### Summaries
 
-Document summaries give retrieval a compact, document-level representation. This becomes especially useful for broader retrieval paths that want more than one isolated chunk match.
+Summaries give retrieval a higher-level view of a document. That matters when a single chunk is too narrow but the document still clearly belongs in the candidate set.
 
 ### Graph signals
 
-Entities and relations can be extracted during ingestion and synchronized into graph-aware retrieval state. This is what allows local and global retrieval paths to use neighborhoods and relation-aware context instead of relying only on chunk similarity.
+Entities and relations create another view of the corpus. They let graph-aware retrieval modes reason over neighborhoods and relations instead of relying only on chunk similarity.
 
-For a learner, the main lesson is that indexing can create multiple views of the same corpus:
+The useful mental model is that indexing creates several retrievable views of the same source material.
 
-- chunk-level
-- summary-level
-- entity-level
-- relation-level
+## What gets written to the workspace
 
-Later retrieval modes decide which of those views to emphasize.
+In local mode, a finished build usually leaves behind artifacts for:
 
-## Who Does What In The Code
-
-The indexing responsibilities are split across a few clear interfaces:
-
-- `load_repo_documents()`: discover and read repository content
-- `prepare_documents_for_insert()`: normalize raw manual texts into canonical documents
-- `chunk_documents()`: choose and execute chunking strategies
-- `build_insert_payloads()`: create the records that will be written into storage
-- `ingest_documents()`: persist the indexed artifacts into the active workspace
-- `rebuild_document_index()`: rebuild a whole repo-root workspace in one call
-
-This is a good example of EasyRAG's teaching style: each stage is small enough to inspect directly.
-
-## What The On-Disk Workspace Contains
-
-When you rebuild a workspace with local storage, EasyRAG writes a set of persistent files that together represent the indexed state.
-
-At a high level, you should expect artifacts for:
-
-- document and chunk storage
+- documents and chunks
 - summaries
 - vector state
 - graph state
 - document status tracking
-- a compatibility snapshot for quick inspection
+- compatibility snapshots
 
-That is why a finished build feels larger than a single vector index. The workspace is a bundle of coordinated retrieval structures, not just one numeric matrix.
+That is why a finished workspace feels larger than a single vector table. EasyRAG builds a bundle of coordinated retrieval structures.
 
-## Zero-Key Indexing And Fallback Behavior
+## Notebook handoff
 
-One important property of the teaching setup is that indexing can still run without a real API key. In those cases, EasyRAG can still build local workspace structure and later retrieve through fallback search behavior.
+The direct notebook companions to this chapter are:
 
-This matters for notebooks because it means learners can still understand:
+- [03_01_build_index.ipynb](../notebooks/03_indexing/03_01_build_index.ipynb), which rebuilds a small workspace and verifies it with one query
+- [03_02_chunking_strategy_lab.ipynb](../notebooks/03_indexing/03_02_chunking_strategy_lab.ipynb), which compares chunking behavior more directly
 
-- loading
-- chunking
-- workspace persistence
-- retrieval verification
+The first notebook answers "what does index building do?" The second answers "which chunking choice changed what?"
 
-without needing a live provider before they understand the architecture.
+## Where to go next
 
-In other words, zero-key indexing is not feature-complete production retrieval. It is a practical way to keep the learning loop runnable.
-
-## How This Chapter Connects To The Notebooks
-
-This page explains the objects and transitions. The notebooks show them happening in sequence.
-
-- [fundamentals/01_build_index.ipynb](../notebooks/fundamentals/01_build_index.ipynb) shows a repo-shaped corpus becoming a workspace
-- [fundamentals/03_custom_documents.ipynb](../notebooks/fundamentals/03_custom_documents.ipynb) shows the manual-document path
-
-The connection between them is important:
-
-- the build-index notebook emphasizes repository loading and workspace artifacts
-- the custom-documents notebook emphasizes metadata control and manual ingestion
-
-Together, they show the two main ways knowledge can enter EasyRAG.
-
-## Where To Go Next
-
-After this overview, choose the next layer depending on what you want to understand:
-
-- run [fundamentals/01_build_index.ipynb](../notebooks/fundamentals/01_build_index.ipynb) for the repository build walkthrough
-- run [fundamentals/03_custom_documents.ipynb](../notebooks/fundamentals/03_custom_documents.ipynb) for the manual-ingestion path
-- read [principles/11-chunking-strategies.md](principles/11-chunking-strategies.md) for chunking tradeoffs
-- read [engineering/21-indexing-pipeline.md](engineering/21-indexing-pipeline.md) for a more code-oriented pipeline explanation
-
-If `02-system-architecture.md` gave you the whole map, this chapter should tell you exactly what the indexing half of that map is responsible for.
+- Continue with [04-retrieval-overview.md](04-retrieval-overview.md) once you want to inspect how the workspace is searched.
+- Read [engineering/21-indexing-pipeline.md](engineering/21-indexing-pipeline.md) if you want the code-oriented version of this stage.

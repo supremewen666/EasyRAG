@@ -53,10 +53,13 @@ python scripts/build_index.py
 
 1. 阅读 [项目概览 / Overview](docs/00-overview.md)
 2. 了解 [RAG 基础 / RAG Basics](docs/01-rag-basics.md)
-3. 继续看 [系统架构 / System Architecture](docs/02-system-architecture.md)
+3. 继续看 [数据加载总览 / Data Loading Overview](docs/02-data-loading-overview.md)
 4. 再看 [索引总览 / Indexing Overview](docs/03-indexing-overview.md)
-5. 最后看 [检索总览 / Retrieval Overview](docs/04-retrieval-overview.md)
+5. 再看 [检索总览 / Retrieval Overview](docs/04-retrieval-overview.md)
 6. 再进入 [生成总览 / Generation Overview](docs/05-generation-overview.md)
+7. 接着读 [评估总览 / Evaluation Overview](docs/06-evaluation-overview.md)
+8. 再看 [优化总览 / Optimization Overview](docs/07-optimization-overview.md)
+9. 最后回到 [系统架构总览 / System Architecture Overview](docs/08-system-architecture-overview.md)
 
 ### 方法原理专题 / Principles
 
@@ -103,28 +106,50 @@ python scripts/build_index.py
 
 ## Notebooks
 
-### Fundamentals
+### Overview
 
-- [00_quickstart.ipynb](notebooks/fundamentals/00_quickstart.ipynb): 最小上手流程
-- [01_build_index.ipynb](notebooks/fundamentals/01_build_index.ipynb): 索引构建说明
-- [02_query_modes.ipynb](notebooks/fundamentals/02_query_modes.ipynb): 查询模式对比
-- [03_custom_documents.ipynb](notebooks/fundamentals/03_custom_documents.ipynb): 自定义文档接入
-- [04_knowledge_graph.ipynb](notebooks/fundamentals/04_knowledge_graph.ipynb): 知识图谱部分
-- [05_generation_basics.ipynb](notebooks/fundamentals/05_generation_basics.ipynb): generation 基础路径
+- [00_quickstart.ipynb](notebooks/00_overview/00_quickstart.ipynb): 最小上手流程
 
-### Experiments
+### Data Loading
 
-- [10_query_preprocessing_lab.ipynb](notebooks/experiments/10_query_preprocessing_lab.ipynb): query 预处理实验
-- [11_chunking_strategy_lab.ipynb](notebooks/experiments/11_chunking_strategy_lab.ipynb): chunk 策略实验
-- [12_vector_retrieval_lab.ipynb](notebooks/experiments/12_vector_retrieval_lab.ipynb): 向量检索实验
-- [13_hybrid_fusion_lab.ipynb](notebooks/experiments/13_hybrid_fusion_lab.ipynb): 混合检索与融合实验
-- [14_rerank_lab.ipynb](notebooks/experiments/14_rerank_lab.ipynb): rerank 实验
-- [15_storage_backend_lab.ipynb](notebooks/experiments/15_storage_backend_lab.ipynb): backend 对比实验
-- [16_failure_cases_and_debugging.ipynb](notebooks/experiments/16_failure_cases_and_debugging.ipynb): 失败案例与调试实验
-- [17_top_k_selection_lab.ipynb](notebooks/experiments/17_top_k_selection_lab.ipynb): top-k 选择实验
-- [18_context_packing_lab.ipynb](notebooks/experiments/18_context_packing_lab.ipynb): 上下文组装实验
-- [19_prompting_and_answer_style_lab.ipynb](notebooks/experiments/19_prompting_and_answer_style_lab.ipynb): prompt 与回答风格实验
-- [20_generation_failure_cases.ipynb](notebooks/experiments/20_generation_failure_cases.ipynb): generation 失败案例实验
+- [02_01_repo_loading.ipynb](notebooks/02_data_loading/02_01_repo_loading.ipynb): repo loading 与 canonical documents
+- [02_02_custom_documents.ipynb](notebooks/02_data_loading/02_02_custom_documents.ipynb): 自定义文档接入
+
+### Indexing
+
+- [03_01_build_index.ipynb](notebooks/03_indexing/03_01_build_index.ipynb): 索引构建说明
+- [03_02_chunking_strategy_lab.ipynb](notebooks/03_indexing/03_02_chunking_strategy_lab.ipynb): chunk 策略实验
+
+### Retrieval
+
+- [04_01_query_modes.ipynb](notebooks/04_retrieval/04_01_query_modes.ipynb): 查询模式对比
+- [04_02_knowledge_graph.ipynb](notebooks/04_retrieval/04_02_knowledge_graph.ipynb): 知识图谱部分
+- [04_03_query_preprocessing_lab.ipynb](notebooks/04_retrieval/04_03_query_preprocessing_lab.ipynb): query 预处理实验
+- [04_04_vector_retrieval_lab.ipynb](notebooks/04_retrieval/04_04_vector_retrieval_lab.ipynb): 向量检索实验
+- [04_05_hybrid_fusion_lab.ipynb](notebooks/04_retrieval/04_05_hybrid_fusion_lab.ipynb): 混合检索与融合实验
+- [04_06_rerank_lab.ipynb](notebooks/04_retrieval/04_06_rerank_lab.ipynb): rerank 实验
+
+### Generation
+
+- [05_01_generation_basics.ipynb](notebooks/05_generation/05_01_generation_basics.ipynb): generation 基础路径
+- [05_02_top_k_selection_lab.ipynb](notebooks/05_generation/05_02_top_k_selection_lab.ipynb): top-k 选择实验
+- [05_03_context_packing_lab.ipynb](notebooks/05_generation/05_03_context_packing_lab.ipynb): 上下文组装实验
+- [05_04_prompting_and_answer_style_lab.ipynb](notebooks/05_generation/05_04_prompting_and_answer_style_lab.ipynb): prompt 与回答风格实验
+- [05_05_generation_failure_cases.ipynb](notebooks/05_generation/05_05_generation_failure_cases.ipynb): generation 失败案例实验
+
+### Evaluation
+
+- [06_01_eval_basics.ipynb](notebooks/06_evaluation/06_01_eval_basics.ipynb): 评估对象与分层
+- [06_02_build_tiny_eval_set.ipynb](notebooks/06_evaluation/06_02_build_tiny_eval_set.ipynb): 小型评测集构造
+- [06_03_retrieval_metrics.ipynb](notebooks/06_evaluation/06_03_retrieval_metrics.ipynb): retrieval metrics
+- [06_04_grounding_and_faithfulness.ipynb](notebooks/06_evaluation/06_04_grounding_and_faithfulness.ipynb): grounding 与 faithfulness
+- [06_05_eval_driven_debugging.ipynb](notebooks/06_evaluation/06_05_eval_driven_debugging.ipynb): 评估驱动调试
+
+### System Architecture
+
+- [08_01_storage_backend_lab.ipynb](notebooks/08_system_architecture/08_01_storage_backend_lab.ipynb): backend 对比实验
+
+`Optimization` 目前只提供 docs overview，不提供 notebook 目录。
 
 ## Examples
 
@@ -146,7 +171,7 @@ Future teaching material should live in `docs/`, `notebooks/`, and `examples/` w
 
 ## Roadmap
 
-- 补全文档章节内容 / Fill in the documentation chapters
-- 补全教学 Notebook / Add notebook walkthroughs
+- 补全 evaluation notebooks 的实作内容 / Flesh out the evaluation notebook bodies
+- 从评估结果反推 optimization notebooks / Grow optimization material from real evaluation loops
 - 补全示例脚本 / Add runnable example scripts
 - 补充练习与教学数据 / Add exercises and sample data

@@ -1,19 +1,18 @@
 # Docs
 
-EasyRAG 的文档分成三层：
+EasyRAG 的文档现在按学习主线来组织，再辅以原理专题和工程专题。
 
-- 主线文档：先建立稳定心智模型
-- 方法原理专题：再拆开讲 query、chunk、向量索引、fusion、KG 等原理
-- 工程实现专题：最后回到代码结构、pipeline 和扩展点
-
-## 项目入口 / Entry Points
+## 主线文档 / Mainline
 
 - [00-overview.md](00-overview.md): 项目总览与学习入口
 - [01-rag-basics.md](01-rag-basics.md): RAG 基础概念与核心对象
-- [02-system-architecture.md](02-system-architecture.md): 系统级数据流与模块边界
+- [02-data-loading-overview.md](02-data-loading-overview.md): 输入进入系统之前的加载与规范化
 - [03-indexing-overview.md](03-indexing-overview.md): 索引阶段总览
 - [04-retrieval-overview.md](04-retrieval-overview.md): 检索阶段总览
-- [05-generation-overview.md](05-generation-overview.md): 生成阶段总览
+- [05-generation-overview.md](05-generation-overview.md): generation 阶段总览
+- [06-evaluation-overview.md](06-evaluation-overview.md): 评估与定位问题
+- [07-optimization-overview.md](07-optimization-overview.md): 优化路线图，当前为 docs-only
+- [08-system-architecture-overview.md](08-system-architecture-overview.md): 全局架构回看
 
 ## 方法原理专题 / Principles
 
@@ -43,18 +42,11 @@ EasyRAG 的文档分成三层：
 
 ## 教学锚点 / Teaching Anchors
 
-## 教学锚点 / Teaching Anchors
-
 Current interfaces:
 
 - `EasyRAG`
 - `QueryParam`
 - `ChunkingConfig`
-- `QueryResult.metadata`
+- `QueryResult`
 
-Planned generation interfaces:
-
-- `AnswerParam`
-- `AnswerResult`
-- `ContextAssemblyConfig`
-- `PromptBuilder` / `PromptTemplate`
+Downstream generation and answer-shaping work remains notebook- and docs-led for now rather than a built-in public API.

@@ -1,21 +1,29 @@
 # Overview
 
-This page is the front door to EasyRAG as a teaching repository. The goal is not to show every feature at once. The goal is to give you a stable mental model, show where the main code lives, and point you to the first runnable walkthrough in [00_quickstart.ipynb](../notebooks/fundamentals/00_quickstart.ipynb).
+This page is the front door to EasyRAG as a teaching repository. The goal is not to show every feature at once. The goal is to give you a stable mental model, show where the main code lives, and point you to the first runnable walkthrough in [00_quickstart.ipynb](../notebooks/00_overview/00_quickstart.ipynb).
 
-## Why RAG
+## The learning question
 
-Large Language Models are strong pattern matchers, but they still have several limits that matter in real applications:
+What are the stages of a small RAG system, and how does EasyRAG make those stages visible instead of hiding them behind one opaque API call?
 
-- their knowledge can be stale
-- they can hallucinate unsupported claims
-- they do not know your private repository or documentation by default
-- they often answer without a clear evidence trail
+## The end-to-end flow
 
-Retrieval-Augmented Generation (RAG) addresses this by adding an explicit retrieval step before generation. Instead of asking the model to answer from parameters alone, we first retrieve relevant chunks from an external knowledge base and then use those grounded artifacts to support the response.
+At a high level, EasyRAG follows one simple loop:
 
-That shift matters because it turns the system from "guess from pretrained memory" into "search, gather evidence, then answer."
+```text
+source files or raw texts
+  -> canonical Document objects
+  -> chunks, summaries, vectors, and graph state
+  -> query preprocessing
+  -> retrieval modes and ranking
+  -> grounded citations and diagnostics
+  -> downstream answer generation
+  -> evaluation and optimization
+```
 
-## What EasyRAG Is
+That order matters. Retrieval quality depends on what was loaded and indexed earlier. Answer quality depends on what retrieval returned. Evaluation only becomes useful once you can inspect each stage separately.
+
+## What EasyRAG is
 
 EasyRAG is a lightweight, teaching-first RAG core library for repository and local-document workflows. It keeps the scope intentionally narrow:
 
@@ -23,90 +31,50 @@ EasyRAG is a lightweight, teaching-first RAG core library for repository and loc
 - chunk them into retrievable units
 - store searchable artifacts in local or production-style backends
 - retrieve chunks through multiple query modes
-- attach lightweight knowledge graph signals when helpful
+- attach lightweight graph signals when helpful
+- hand back grounded results that are easy to inspect
 
-This repository is small on purpose. You can read the orchestrator, the indexing pipeline, the retrieval pipeline, and the storage layer without stepping through a large framework. That makes it useful for both learners and engineers who want a compact reference implementation.
+That makes the repository useful in two ways. You can learn the shape of a RAG system from it, and you can also use it as a compact reference implementation when you need to extend or debug one.
 
-## How This Repo Maps to RAG From Scratch
+## What EasyRAG does not hide
 
-The teaching flow is inspired by the "build it step by step" style from [pguso/rag-from-scratch](https://github.com/pguso/rag-from-scratch). EasyRAG follows the same broad story, but the code is organized as a Python library with pluggable backends and a repository-oriented workflow.
+EasyRAG is easiest to learn when you keep these boundaries visible:
 
-| Tutorial idea | EasyRAG location | What it does in this repo |
-| --- | --- | --- |
-| Load source documents | `easyrag/rag/indexing/loaders.py` | Discovers indexable docs and PDFs and turns them into `Document` objects. |
-| Normalize manual inserts | `easyrag/rag/indexing/prepare.py` | Converts raw strings into canonical `Document` records with metadata. |
-| Chunk documents | `easyrag/rag/indexing/chunking.py` | Splits documents into chunks for retrieval and downstream enrichment. |
-| Build searchable artifacts | `easyrag/rag/indexing/pipeline.py` | Creates document, chunk, summary, vector, and graph payloads during ingestion. |
-| Configure model providers | `easyrag/rag/providers.py` | Adapts OpenAI-compatible embedding, query rewrite, rerank, and KG extraction calls. |
-| Rewrite and expand queries | `easyrag/rag/retrieval/preprocess.py` | Normalizes the query, optionally rewrites it, and generates MQE variants. |
-| Run retrieval modes | `easyrag/rag/retrieval/query_modes.py` | Implements naive, local, global, hybrid, and mix retrieval behavior. |
-| Coordinate the full flow | `easyrag/rag/orchestrator.py` | Exposes `EasyRAG` as the high-level API for insert, query, and maintenance. |
-| Swap storage backends | `easyrag/rag/storage/` | Separates local-first storage from production-oriented bundles. |
-| Rebuild a repo index | `scripts/build_index.py` | Provides a small CLI for repository indexing and maintenance. |
+- data loading happens before indexing
+- indexing happens before retrieval
+- retrieval returns evidence, not a polished final answer
+- evaluation is not a separate afterthought; it is how you tell which layer is weak
+- optimization only makes sense once evaluation has localized the problem
 
-The useful takeaway is that the same RAG story still applies: collect documents, transform them into searchable units, retrieve evidence, and return grounded results. EasyRAG just makes each stage explicit in library form.
+This is close to the step-by-step teaching rhythm used in [pguso/rag-from-scratch](https://github.com/pguso/rag-from-scratch): move through the pipeline in order, inspect each artifact, and only then stack on the next concept.
 
-## The Smallest End-to-End Flow
+## How the mainline is organized
 
-At the highest level, EasyRAG revolves around one simple loop:
+The documentation now follows the pipeline directly:
 
-1. Create an `EasyRAG` instance
-2. Initialize storages
-3. Insert documents
-4. Query with `QueryParam`
-5. Finalize storages
+1. [01-rag-basics.md](01-rag-basics.md)
+2. [02-data-loading-overview.md](02-data-loading-overview.md)
+3. [03-indexing-overview.md](03-indexing-overview.md)
+4. [04-retrieval-overview.md](04-retrieval-overview.md)
+5. [05-generation-overview.md](05-generation-overview.md)
+6. [06-evaluation-overview.md](06-evaluation-overview.md)
+7. [07-optimization-overview.md](07-optimization-overview.md)
+8. [08-system-architecture-overview.md](08-system-architecture-overview.md)
 
-The smallest example looks like this:
+The notebook tree mirrors the same stages, so the docs and runnable walkthroughs tell the same story instead of drifting apart.
 
-```python
-from easyrag import EasyRAG, QueryParam
-from easyrag.support.async_utils import run_sync
+## Start with the quickstart
 
-rag = EasyRAG()
-run_sync(rag.initialize_storages())
+The first runnable walkthrough lives in [00_quickstart.ipynb](../notebooks/00_overview/00_quickstart.ipynb). It is intentionally small:
 
-run_sync(
-    rag.ainsert(
-        "EasyRAG uses retrieval before generation.",
-        ids=["doc::demo"],
-        file_paths=["notes/demo.md"],
-    )
-)
+- Path A runs with deterministic stubs and no API keys
+- Path B keeps the same lifecycle but shows where real providers plug in
+- the notebook stays close to the public `EasyRAG` API, not to private helper internals
 
-result = run_sync(
-    rag.aquery(
-        "How does EasyRAG answer grounded questions?",
-        QueryParam(mode="hybrid"),
-    )
-)
+If you are new to the repo, run the stub path first. It gives you the orchestration shape before any provider configuration noise shows up.
 
-print(result.citations)
-run_sync(rag.finalize_storages())
-```
+## Where to go next
 
-That is the whole mental model in miniature: ingestion creates indexed knowledge, and retrieval turns a question into grounded citations.
-
-## How To Use The Quickstart Notebook
-
-The first runnable walkthrough lives in [00_quickstart.ipynb](../notebooks/fundamentals/00_quickstart.ipynb). It is structured as a teaching notebook rather than a benchmark notebook:
-
-- each important code cell is introduced by a Markdown explanation
-- each important code cell is followed by a short note on what you should observe
-- Path A uses deterministic stub functions so the notebook can run without API keys
-- Path B shows the same lifecycle with real OpenAI-compatible providers after configuration
-
-This is deliberate. The notebook is meant to be readable by both humans and future coding agents: the explanation stays next to the code, the execution path is obvious, and the expected results are named where they appear.
-
-If you are new to the repo, start with the stub path first. It teaches the orchestration shape without introducing provider configuration noise. Then move to the real-provider path once the lifecycle makes sense.
-
-## Where To Go Next
-
-After the quickstart, continue in this order:
-
-- [01-rag-basics.md](01-rag-basics.md) for the conceptual building blocks
-- [02-system-architecture.md](02-system-architecture.md) for the system-level map
-- [03-indexing-overview.md](03-indexing-overview.md) for document preparation and indexing
-- [04-retrieval-overview.md](04-retrieval-overview.md) for query preprocessing and retrieval modes
-- [notebooks/README.md](../notebooks/README.md) for the notebook roadmap
-
-When you want to move from a tiny in-memory example to repository-scale indexing, inspect `EasyRAG.load_repo_documents()` and then read `scripts/build_index.py`. Those two entry points bridge the gap between a teaching example and the real repository workflow.
+- Read [01-rag-basics.md](01-rag-basics.md) for the minimal vocabulary: `Document`, chunks, citations, and `QueryResult`.
+- Continue with [02-data-loading-overview.md](02-data-loading-overview.md) when you want to see how raw inputs become canonical records.
+- Keep [notebooks/README.md](../notebooks/README.md) open if you prefer to move stage by stage through runnable material.

@@ -37,7 +37,7 @@ from easyrag.rag.providers import (
     default_query_model_func,
     default_reranker_func,
 )
-from easyrag.rag.utils import dedupe_strings, slugify
+from easyrag.rag.utils import slugify
 
 
 def _resolve_kg_extraction_config(config: KGExtractionConfig | None) -> KGExtractionConfig:
