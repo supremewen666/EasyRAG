@@ -106,6 +106,66 @@ class ProviderAdapterTestCase(unittest.TestCase):
             {"model": "text-embedding-v4", "input": ["alpha"]},
         )
 
+    def test_embedding_retries_transient_failures(self) -> None:
+        os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "text-embedding-v4"
+        os.environ["EASYRAG_EMBEDDING_BASE_URL"] = "https://api.example.com/v1"
+
+        class _FlakyEmbeddingsAPI:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create(self, *, model, input):
+                self.calls += 1
+                if self.calls == 1:
+                    raise TimeoutError("temporary timeout")
+                return type(
+                    "EmbeddingsResponse",
+                    (),
+                    {"data": [type("EmbeddingItem", (), {"embedding": [0.3, 0.4]})()]},
+                )()
+
+        class _FlakyOpenAIClient:
+            instances = []
+
+            def __init__(self, *, api_key, base_url):
+                self.api_key = api_key
+                self.base_url = base_url
+                self.embeddings = _FlakyEmbeddingsAPI()
+                _FlakyOpenAIClient.instances.append(self)
+
+        with patch.object(providers, "OpenAI", _FlakyOpenAIClient):
+            vectors = providers.default_embedding_func(["alpha"])
+
+        self.assertEqual(vectors, [[0.3, 0.4]])
+        self.assertEqual(_FlakyOpenAIClient.instances[0].embeddings.calls, 2)
+
+    def test_embedding_does_not_retry_non_transient_failures(self) -> None:
+        os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "text-embedding-v4"
+        os.environ["EASYRAG_EMBEDDING_BASE_URL"] = "https://api.example.com/v1"
+
+        class _PermanentEmbeddingsAPI:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def create(self, *, model, input):
+                self.calls += 1
+                raise ValueError("bad request")
+
+        class _PermanentOpenAIClient:
+            instances = []
+
+            def __init__(self, *, api_key, base_url):
+                self.api_key = api_key
+                self.base_url = base_url
+                self.embeddings = _PermanentEmbeddingsAPI()
+                _PermanentOpenAIClient.instances.append(self)
+
+        with patch.object(providers, "OpenAI", _PermanentOpenAIClient):
+            with self.assertRaisesRegex(ValueError, "bad request"):
+                providers.default_embedding_func(["alpha"])
+
+        self.assertEqual(_PermanentOpenAIClient.instances[0].embeddings.calls, 1)
+
     def test_dashscope_vl_rerank_uses_official_endpoint(self) -> None:
         os.environ["EASYRAG_RERANK_MODEL_NAME"] = "Qwen3-VL-Reranker-8B"
         os.environ["EASYRAG_RERANK_BASE_URL"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"

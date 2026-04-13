@@ -8,7 +8,7 @@ from easyrag.rag.storage.base import (
     BaseTaskStatusStorage,
     BaseVectorStorage,
 )
-from easyrag.rag.types import KGExtractionConfig, QueryParam, QueryResult
+from easyrag.rag.types import AnswerParam, AnswerResult, EvalCase, KGExtractionConfig, QueryParam, QueryResult
 
 __all__ = [
     "BaseDocStatusStorage",
@@ -17,6 +17,9 @@ __all__ = [
     "BaseTaskStatusStorage",
     "BaseVectorStorage",
     "EasyRAG",
+    "AnswerParam",
+    "AnswerResult",
+    "EvalCase",
     "KGExtractionConfig",
     "QueryParam",
     "QueryResult",

@@ -41,6 +41,8 @@ class QueryParam:
     mqe_variants: int = 3
     retrieval_fusion: str = "rrf"
     chunk_strategy_override: str | None = None
+    metadata_filters: dict[str, Any] | None = None
+    min_score: float | None = None
 
 
 @dataclass(frozen=True)
@@ -65,8 +67,45 @@ class QueryResult:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class AnswerParam:
+    """Configuration for answer generation built on top of ``QueryResult``."""
+
+    max_citations: int = 3
+    max_context_chars: int = 360
+    style: str = "citation_aware"
+    require_citations: bool = True
+    allow_abstain: bool = True
+
+
+@dataclass
+class AnswerResult:
+    """Structured answer result downstream of retrieval."""
+
+    question: str
+    answer: str
+    citations: list[dict[str, str]] = field(default_factory=list)
+    selected_citations: list[dict[str, str]] = field(default_factory=list)
+    context_block: str = ""
+    prompt: str = ""
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class EvalCase:
+    """One deterministic retrieval or answer evaluation case."""
+
+    question: str
+    expected_document_ids: tuple[str, ...] = ()
+    expected_snippets: tuple[str, ...] = ()
+    reference_answer: str = ""
+    expected_to_abstain: bool = False
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
 RerankerFunc = Callable[[str, list[dict[str, Any]]], list[dict[str, Any]]]
 LLMFunc = Callable[..., Any]
 EmbeddingFunc = Callable[[list[str]], list[list[float]]]
 QueryModelFunc = Callable[..., str | list[str]]
+AnswerModelFunc = Callable[..., str]
 ChunkerFunc = Callable[[Document], list[Document]]

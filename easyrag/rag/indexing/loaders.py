@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from easyrag.support.optional_deps import Document
+from easyrag.rag.indexing.normalization import normalize_document_text
 from easyrag.rag.utils import slugify
 
 try:
@@ -129,13 +130,13 @@ def load_pdf_documents(path: Path, root: Path) -> list[Document]:
     for page_number, page in enumerate(reader.pages, start=1):
         image_paths = _save_pdf_page_images(page, path, root, page_number=page_number)
         try:
-            text = (page.extract_text() or "").strip()
+            text = normalize_document_text(page.extract_text() or "")
         except Exception:
             text = ""
         if not text and not image_paths:
             continue
         if not text and image_paths:
-            text = f"Scanned PDF page {page_number} from {path.stem}."
+            text = normalize_document_text(f"Scanned PDF page {page_number} from {path.stem}.")
         documents.append(
             Document(
                 page_content=text,
@@ -156,7 +157,7 @@ def load_repo_documents(repo_root: str | Path) -> list[Document]:
         if path.suffix.lower() in _PDF_SUFFIXES:
             documents.extend(load_pdf_documents(path, root))
             continue
-        text = path.read_text(encoding="utf-8", errors="ignore").strip()
+        text = normalize_document_text(path.read_text(encoding="utf-8", errors="ignore"))
         if not text:
             continue
         documents.append(

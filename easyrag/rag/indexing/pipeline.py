@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from easyrag.support.optional_deps import Document
 from easyrag.rag.indexing.chunking import chunk_documents
+from easyrag.rag.indexing.quality import annotate_document_quality
 from easyrag.rag.knowledge.extraction import extract_chunk_knowledge
 from easyrag.rag.knowledge.sync import sync_entity_vectors, sync_relation_vectors
 from easyrag.rag.utils import slugify, summarize_document
@@ -270,7 +271,12 @@ def build_insert_payloads(
             {
                 "document_id": doc_id,
                 "status": "indexed",
-                "metadata": {"path": path, "chunk_count": chunk_count},
+                "metadata": {
+                    "path": path,
+                    "chunk_count": chunk_count,
+                    "quality_flags": list(document.metadata.get("quality_flags", []) or []),
+                    "quality_issue_count": int(document.metadata.get("quality_issue_count", 0)),
+                },
             }
         )
 
@@ -281,20 +287,32 @@ def build_insert_payloads(
     return payloads
 
 
-async def ingest_documents(rag: "EasyRAG", documents: list[Document]) -> dict[str, int]:
+async def ingest_documents(rag: "EasyRAG", documents: list[Document]) -> dict[str, Any]:
     """Insert documents into the EasyRAG workspace."""
 
+    annotated_documents, quality_report = annotate_document_quality(documents)
     doc_ids = list(
         dict.fromkeys(
             str(document.metadata.get("doc_id", "")).strip()
-            for document in documents
+            for document in annotated_documents
             if str(document.metadata.get("doc_id", "")).strip()
         )
     )
     if doc_ids:
         await rag.adelete_documents(doc_ids)
 
-    payloads = build_insert_payloads(rag, documents)
+    if not annotated_documents:
+        return {
+            "documents": 0,
+            "chunks": 0,
+            "entities": 0,
+            "relations": 0,
+            "pdf_documents": 0,
+            "skipped_documents": int(quality_report.get("skipped_documents", 0)),
+            "quality_issue_counts": dict(quality_report.get("quality_issue_counts", {})),
+        }
+
+    payloads = build_insert_payloads(rag, annotated_documents)
     await rag.kv_storage.upsert_documents(payloads["documents"])
     await rag.kv_storage.upsert_chunks(payloads["chunks"])
     await rag.kv_storage.upsert_summaries(payloads["summaries"])
@@ -313,6 +331,8 @@ async def ingest_documents(rag: "EasyRAG", documents: list[Document]) -> dict[st
         "entities": entity_vector_stats["upserted"],
         "relations": relation_vector_stats["upserted"],
         "pdf_documents": payloads["pdf_documents"],
+        "skipped_documents": int(quality_report.get("skipped_documents", 0)),
+        "quality_issue_counts": dict(quality_report.get("quality_issue_counts", {})),
     }
 
 

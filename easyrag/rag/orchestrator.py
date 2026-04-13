@@ -9,10 +9,11 @@ from uuid import uuid4
 
 from easyrag.support.optional_deps import Document
 from easyrag.config import get_kg_entity_types, get_rag_working_dir, get_rag_workspace
+from easyrag.rag.generation.pipeline import generate_answer
 from easyrag.rag.indexing.chunking import ChunkingConfig, build_chunker_registry
 from easyrag.rag.indexing.loaders import load_repo_documents
 from easyrag.rag.indexing.pipeline import ingest_documents
-from easyrag.rag.indexing.prepare import prepare_documents_for_insert
+from easyrag.rag.indexing.prepare import prepare_documents_for_insert, prepare_documents_for_insert_with_report
 from easyrag.rag.knowledge.curation import build_entity_payload, build_relation_payload
 from easyrag.rag.knowledge.sync import sync_entity_vectors, sync_relation_vectors
 from easyrag.rag.retrieval.pipeline import execute_query
@@ -20,6 +21,9 @@ from easyrag.rag.retrieval.preprocess import QueryPreprocessor
 from easyrag.rag.storage.base import BaseDocStatusStorage, BaseGraphStorage, BaseKVStorage, BaseVectorStorage
 from easyrag.rag.storage.bundles import resolve_storage_bundle
 from easyrag.rag.types import (
+    AnswerModelFunc,
+    AnswerParam,
+    AnswerResult,
     DEFAULT_KG_ENTITY_TYPES,
     ChunkerFunc,
     EmbeddingFunc,
@@ -67,6 +71,7 @@ class EasyRAG:
         query_model_func: QueryModelFunc | None = None,
         embedding_func: EmbeddingFunc | None = None,
         reranker_func: RerankerFunc | None = None,
+        answer_model_func: AnswerModelFunc | None = None,
         kg_extraction_config: KGExtractionConfig | None = None,
         storage_backend: str | None = None,
         kv_storage_cls: type[BaseKVStorage] | None = None,
@@ -84,6 +89,7 @@ class EasyRAG:
         self.query_model_func = query_model_func or (default_query_model_func if can_use_openai_compatible_models() else None)
         self.embedding_func = embedding_func or (default_embedding_func if can_use_openai_compatible_models() else None)
         self.reranker_func = reranker_func or (default_reranker_func if can_use_openai_compatible_models() else None)
+        self.answer_model_func = answer_model_func
         self.kg_extraction_config = _resolve_kg_extraction_config(kg_extraction_config)
         self.chunking_config = chunking_config or ChunkingConfig()
         self.chunker_registry = chunker_registry or build_chunker_registry()
@@ -140,14 +146,22 @@ class EasyRAG:
         *,
         ids: Sequence[str] | None = None,
         file_paths: Sequence[str] | None = None,
-    ) -> dict[str, int]:
+    ) -> dict[str, Any]:
         """Insert one or more documents into the configured workspace."""
 
         self._ensure_initialized()
-        documents = prepare_documents_for_insert(texts, ids=ids, file_paths=file_paths)
-        return await ingest_documents(self, documents)
+        documents, preparation_report = prepare_documents_for_insert_with_report(texts, ids=ids, file_paths=file_paths)
+        stats = await ingest_documents(self, documents)
+        quality_counts = dict(stats.get("quality_issue_counts", {}))
+        if preparation_report.get("empty_after_normalization", 0):
+            quality_counts["empty_after_normalization"] = int(quality_counts.get("empty_after_normalization", 0)) + int(
+                preparation_report["empty_after_normalization"]
+            )
+        stats["quality_issue_counts"] = quality_counts
+        stats["skipped_documents"] = int(stats.get("skipped_documents", 0)) + int(preparation_report.get("empty_after_normalization", 0))
+        return stats
 
-    async def ainsert_documents(self, documents: Sequence[Document]) -> dict[str, int]:
+    async def ainsert_documents(self, documents: Sequence[Document]) -> dict[str, Any]:
         """Insert pre-built Document objects while preserving their metadata."""
 
         self._ensure_initialized()
@@ -193,6 +207,23 @@ class EasyRAG:
 
         self._ensure_initialized()
         return await execute_query(self, query, param)
+
+    async def aanswer(
+        self,
+        query: str,
+        query_param: QueryParam,
+        answer_param: AnswerParam | None = None,
+    ) -> AnswerResult:
+        """Run retrieval and generation as one grounded answering flow."""
+
+        self._ensure_initialized()
+        retrieval_result = await self.aquery(query, query_param)
+        return generate_answer(
+            query,
+            retrieval_result,
+            answer_param=answer_param or AnswerParam(),
+            answer_model_func=self.answer_model_func,
+        )
 
     async def acreate_entity(
         self,

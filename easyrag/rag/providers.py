@@ -33,6 +33,54 @@ except ImportError:  # pragma: no cover - optional dependency path.
     OpenAI = None
 
 
+def _retryable_exception_types() -> tuple[type[BaseException], ...]:
+    """Return a conservative set of transient exception types."""
+
+    types: list[type[BaseException]] = [TimeoutError, ConnectionError, OSError]
+    if httpx is not None:
+        for name in ("TimeoutException", "TransportError", "NetworkError", "ReadTimeout", "ConnectTimeout"):
+            value = getattr(httpx, name, None)
+            if isinstance(value, type) and issubclass(value, BaseException):
+                types.append(value)
+    return tuple(dict.fromkeys(types))
+
+
+def _is_retryable_error(exc: Exception) -> bool:
+    """Return whether an exception looks transient enough to retry once or twice."""
+
+    if isinstance(exc, _retryable_exception_types()):
+        return True
+    message = str(exc).lower()
+    return any(
+        marker in message
+        for marker in (
+            "timeout",
+            "temporarily unavailable",
+            "connection reset",
+            "connection aborted",
+            "try again",
+            "too many requests",
+            "rate limit",
+        )
+    )
+
+
+def _call_with_retry(operation: Any, *, attempts: int = 3) -> Any:
+    """Retry a transient provider call a small number of times."""
+
+    last_error: Exception | None = None
+    for attempt in range(max(1, attempts)):
+        try:
+            return operation()
+        except Exception as exc:
+            last_error = exc
+            if attempt >= attempts - 1 or not _is_retryable_error(exc):
+                raise
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Provider call failed before execution.")
+
+
 def can_use_openai_compatible_models() -> bool:
     """Return whether the environment has enough configuration for model calls."""
 
@@ -217,13 +265,15 @@ def default_query_model_func(
     else:
         raise ValueError(f"Unsupported query model task: {task}")
 
-    response = client.chat.completions.create(
-        model=get_query_model_name(),
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.1,
+    response = _call_with_retry(
+        lambda: client.chat.completions.create(
+            model=get_query_model_name(),
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,
+        )
     )
     text = _extract_text_from_chat_response(response)
     if task == "rewrite":
@@ -248,14 +298,16 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
         if not _is_dashscope_url(base_url):
             raise RuntimeError("Qwen3-VL-Embedding requires a DashScope embedding base URL.")
         client = _require_httpx()
-        response = client.post(
-            _get_dashscope_multimodal_embedding_url(base_url),
-            json={
-                "model": model_name,
-                "input": {"contents": [_build_multimodal_content(text) for text in texts]},
-            },
-            headers={"Authorization": f"Bearer {get_openai_api_key().strip()}", "Content-Type": "application/json"},
-            timeout=30.0,
+        response = _call_with_retry(
+            lambda: client.post(
+                _get_dashscope_multimodal_embedding_url(base_url),
+                json={
+                    "model": model_name,
+                    "input": {"contents": [_build_multimodal_content(text) for text in texts]},
+                },
+                headers={"Authorization": f"Bearer {get_openai_api_key().strip()}", "Content-Type": "application/json"},
+                timeout=30.0,
+            )
         )
         response.raise_for_status()
         body = response.json()
@@ -266,7 +318,7 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
         return values
 
     client = _require_client(base_url)
-    response = client.embeddings.create(model=model_name, input=texts)
+    response = _call_with_retry(lambda: client.embeddings.create(model=model_name, input=texts))
     return [list(item.embedding) for item in response.data]
 
 
@@ -297,14 +349,16 @@ def default_kg_model_func(
         "Relation names must be concise lowercase snake_case. "
         "Only include entities and relations grounded in the provided text."
     )
-    response = client.chat.completions.create(
-        model=get_kg_model_name(),
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"{page_context}Content:\n{text}"},
-        ],
-        temperature=0.0,
-        response_format={"type": "json_object"},
+    response = _call_with_retry(
+        lambda: client.chat.completions.create(
+            model=get_kg_model_name(),
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"{page_context}Content:\n{text}"},
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"},
+        )
     )
     parsed = _parse_json_object(_extract_text_from_chat_response(response))
     entities = parsed.get("entities", [])
@@ -352,23 +406,27 @@ def default_reranker_func(query: str, items: list[dict[str, Any]]) -> list[dict[
                 "documents": documents,
                 "top_n": len(documents),
             }
-        response = client.post(
-            _get_dashscope_rerank_url(base_url, model_name),
-            json=payload,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            timeout=30.0,
+        response = _call_with_retry(
+            lambda: client.post(
+                _get_dashscope_rerank_url(base_url, model_name),
+                json=payload,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                timeout=30.0,
+            )
         )
     else:
-        response = client.post(
-            f"{base_url.rstrip('/')}/rerank",
-            json={
-                "model": model_name,
-                "query": query,
-                "documents": documents,
-                "top_n": len(documents),
-            },
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            timeout=30.0,
+        response = _call_with_retry(
+            lambda: client.post(
+                f"{base_url.rstrip('/')}/rerank",
+                json={
+                    "model": model_name,
+                    "query": query,
+                    "documents": documents,
+                    "top_n": len(documents),
+                },
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                timeout=30.0,
+            )
         )
     response.raise_for_status()
     body = response.json()
