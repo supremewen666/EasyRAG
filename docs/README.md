@@ -1,38 +1,40 @@
 # Docs
 
-Mainline: 按阶段学习
-Principles: 按方法学习
-Engineering: 按代码实现学习
+The EasyRAG documentation is organized around the main learning path, with separate sections for methods and implementation details.
 
-EasyRAG 的文档按学习主线组织，并辅以原理专题与工程专题。
+At a glance:
 
-当前状态：
+- Mainline: learn by stage
+- Principles: learn by method
+- Engineering: learn by implementation
 
-- `overview` 只讲阶段心智模型、输入输出与学习路径。
-- `principles` 只讲通用方法，不绑定仓库文件路径，不重复 notebook 导航。
-- `engineering` 只讲实现落点、模块关系与扩展点，不重复大段方法论。
-- `principles` 和 `engineering` 下的大部分页面目前仍是 `draft/placeholder`，但已统一为同一模板，方便后续补正文。
+Current status:
 
-## 主线文档 / Mainline
+- `overview` focuses on stage-level mental models, inputs and outputs, and suggested learning paths
+- `principles` focuses on general methods, without tying itself to specific file paths or repeating notebook navigation
+- `engineering` focuses on implementation points, module relationships, and extension hooks, without repeating long method discussions
+- Most pages under `principles` and `engineering` are still `draft/placeholder` pages, but they already follow the same template, which makes future expansion easier
 
-- [00-overview.md](00-overview.md): 项目总览与学习入口
-- [01-rag-basics.md](01-rag-basics.md): RAG 基础概念与核心对象，docs-only
-- [02-data-loading-overview.md](02-data-loading-overview.md): 输入进入系统之前的加载与规范化
-- [03-indexing-overview.md](03-indexing-overview.md): 索引阶段总览
-- [04-retrieval-overview.md](04-retrieval-overview.md): 检索阶段总览
-- [05-generation-overview.md](05-generation-overview.md): generation 阶段总览
-- [06-evaluation-overview.md](06-evaluation-overview.md): 评估与定位问题
-- [07-optimization-overview.md](07-optimization-overview.md): 优化路线图，当前为 docs-only
-- [08-system-architecture-overview.md](08-system-architecture-overview.md): 全局架构回看
+## Mainline docs
 
-说明：
+- [00-overview.md](00-overview.md): project overview and best entry point
+- [01-rag-basics.md](01-rag-basics.md): core RAG concepts and key objects, docs-only
+- [02-data-loading-overview.md](02-data-loading-overview.md): loading and normalization before data enters the system
+- [03-indexing-overview.md](03-indexing-overview.md): indexing stage overview
+- [04-retrieval-overview.md](04-retrieval-overview.md): retrieval stage overview
+- [05-generation-overview.md](05-generation-overview.md): generation stage overview
+- [06-evaluation-overview.md](06-evaluation-overview.md): evaluation and problem diagnosis
+- [07-optimization-overview.md](07-optimization-overview.md): optimization roadmap, currently docs-only
+- [08-system-architecture-overview.md](08-system-architecture-overview.md): a system-level look back across the full stack
 
-- `01-rag-basics` 继续作为 docs-only 基础词汇页
-- `07-optimization-overview` 继续作为 docs-only 路线图
-- `06-evaluation-overview` 已是主线的一部分，不再只是补充章节
-- 多个 overview 已显式纳入工业界常用方法，如 normalization、metadata filtering、hybrid retrieval、rerank、latency/cost、fallback
+Notes:
 
-## 方法原理专题 / Principles
+- `01-rag-basics` remains a docs-only glossary and foundation page
+- `07-optimization-overview` remains a docs-only roadmap
+- `06-evaluation-overview` is part of the main path now, not just a supplemental section
+- Several overview pages now explicitly include common production ideas such as normalization, metadata filtering, hybrid retrieval, reranking, latency/cost tradeoffs, and fallback
+
+## Principles
 
 - [10-query-preprocessing.md](principles/10-query-preprocessing.md)
 - [11-chunking-strategies.md](principles/11-chunking-strategies.md)
@@ -47,12 +49,12 @@ EasyRAG 的文档按学习主线组织，并辅以原理专题与工程专题。
 - [20-generation-failures-and-guardrails.md](principles/20-generation-failures-and-guardrails.md)
 - [21-evaluation-and-debugging.md](principles/21-evaluation-and-debugging.md)
 
-说明：
+Notes:
 
-- `principles` 按“从输入到答案，再到评估优化”的顺序排布。
-- generation 相关主题连续出现，evaluation 放在最后，避免阅读路径来回跳。
+- `principles` follows the path from input to answer, then into evaluation and optimization
+- generation-related topics are grouped together, with evaluation placed at the end so the reading path stays linear
 
-## 工程实现专题 / Engineering
+## Engineering
 
 - [20-code-map.md](engineering/20-code-map.md)
 - [21-indexing-pipeline.md](engineering/21-indexing-pipeline.md)
@@ -62,12 +64,12 @@ EasyRAG 的文档按学习主线组织，并辅以原理专题与工程专题。
 - [25-local-vs-production-backends.md](engineering/25-local-vs-production-backends.md)
 - [26-extension-guide.md](engineering/26-extension-guide.md)
 
-说明：
+Notes:
 
-- `engineering` 先给代码总览，再按运行链路，再讲系统边界，最后讲扩展。
-- [20-code-map.md](engineering/20-code-map.md) 是工程专题的首要入口，后续内容默认从这里跳转。
+- `engineering` starts with a code-level overview, then follows the runtime path, then covers system boundaries, and ends with extension points
+- [20-code-map.md](engineering/20-code-map.md) is the main entry point for the engineering section, and the later pages assume you start there
 
-## 教学锚点 / Teaching Anchors
+## Teaching anchors
 
 Current interfaces:
 
@@ -76,4 +78,4 @@ Current interfaces:
 - `ChunkingConfig`
 - `QueryResult`
 
-Downstream generation and answer-shaping work remains notebook- and docs-led for now rather than a built-in public API.
+For now, downstream generation and answer-shaping work is still led mainly by the docs and notebooks rather than a built-in public API.
