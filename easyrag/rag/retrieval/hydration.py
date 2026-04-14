@@ -10,7 +10,9 @@ if TYPE_CHECKING:
     from easyrag.rag.orchestrator import EasyRAG
 
 
-async def hydrate_record(rag: "EasyRAG", record: dict[str, object]) -> dict[str, object] | None:
+async def hydrate_record(
+    rag: "EasyRAG", record: dict[str, object]
+) -> dict[str, object] | None:
     """Hydrate a ranked record with full text and metadata for citations/rerank."""
 
     record_id = str(record["id"])
@@ -43,7 +45,9 @@ async def hydrate_record(rag: "EasyRAG", record: dict[str, object]) -> dict[str,
     return dict(record)
 
 
-async def hydrate_records(rag: "EasyRAG", records: list[dict[str, object]]) -> list[dict[str, object]]:
+async def hydrate_records(
+    rag: "EasyRAG", records: list[dict[str, object]]
+) -> list[dict[str, object]]:
     """Hydrate ranked records in order."""
 
     hydrated: list[dict[str, object]] = []
@@ -58,7 +62,10 @@ async def chunks_to_documents(records: list[dict[str, object]]) -> list[Document
     """Convert hydrated records into document objects."""
 
     return [
-        Document(page_content=str(record.get("text", "")), metadata=dict(record.get("metadata", {})))
+        Document(
+            page_content=str(record.get("text", "")),
+            metadata=dict(record.get("metadata", {})),
+        )
         for record in records
         if str(record.get("text", "")).strip()
     ]

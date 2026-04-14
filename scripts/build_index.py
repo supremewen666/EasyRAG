@@ -26,7 +26,9 @@ def _run_async(awaitable: object) -> object:
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments for index maintenance."""
 
-    parser = argparse.ArgumentParser(description="Build or maintain the EasyRAG RAG index.")
+    parser = argparse.ArgumentParser(
+        description="Build or maintain the EasyRAG RAG index."
+    )
     parser.add_argument(
         "--action",
         choices=("rebuild", "update", "delete"),
@@ -43,7 +45,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args([] if argv is None else argv)
 
 
-def _print_summary(rag: EasyRAG, stats: dict[str, int], aggregate: dict[str, int], *, action: str, targeted_doc_ids: list[str]) -> None:
+def _print_summary(
+    rag: EasyRAG,
+    stats: dict[str, int],
+    aggregate: dict[str, int],
+    *,
+    action: str,
+    targeted_doc_ids: list[str],
+) -> None:
     """Print a compact summary of the index maintenance result."""
 
     print(f"repo_root={get_repo_root()}")
@@ -65,7 +74,11 @@ def main(argv: list[str] | None = None) -> None:
 
     args = _parse_args(argv)
     action = "rebuild" if args.action == "update" else args.action
-    targeted_doc_ids = list(dict.fromkeys(str(doc_id).strip() for doc_id in args.doc_ids if str(doc_id).strip()))
+    targeted_doc_ids = list(
+        dict.fromkeys(
+            str(doc_id).strip() for doc_id in args.doc_ids if str(doc_id).strip()
+        )
+    )
 
     if action == "delete":
         rag = EasyRAG(working_dir=get_rag_working_dir(), workspace=get_rag_workspace())
@@ -79,10 +92,13 @@ def main(argv: list[str] | None = None) -> None:
             remaining_documents = [
                 document
                 for document in EasyRAG.load_repo_documents(get_repo_root())
-                if str(document.metadata.get("doc_id", "")).strip() not in set(targeted_doc_ids)
+                if str(document.metadata.get("doc_id", "")).strip()
+                not in set(targeted_doc_ids)
             ]
             write_legacy_snapshot(remaining_documents)
-        _print_summary(rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids)
+        _print_summary(
+            rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids
+        )
         return
 
     rebuild_document_index(get_repo_root(), doc_ids=targeted_doc_ids or None)
@@ -92,19 +108,30 @@ def main(argv: list[str] | None = None) -> None:
         aggregate = _run_async(rag.get_stats())
         current_documents = EasyRAG.load_repo_documents(get_repo_root())
         filtered_documents = (
-            [document for document in current_documents if str(document.metadata.get("doc_id", "")).strip() in set(targeted_doc_ids)]
+            [
+                document
+                for document in current_documents
+                if str(document.metadata.get("doc_id", "")).strip()
+                in set(targeted_doc_ids)
+            ]
             if targeted_doc_ids
             else current_documents
         )
         stats = {
             "documents": len(filtered_documents),
-            "pdf_documents": sum(1 for document in filtered_documents if document.metadata.get("source_type") == "pdf"),
+            "pdf_documents": sum(
+                1
+                for document in filtered_documents
+                if document.metadata.get("source_type") == "pdf"
+            ),
             "chunks": int(aggregate.get("chunks", 0)),
         }
     finally:
         _run_async(rag.finalize_storages())
 
-    _print_summary(rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids)
+    _print_summary(
+        rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids
+    )
 
 
 if __name__ == "__main__":

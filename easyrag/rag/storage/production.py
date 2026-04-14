@@ -8,9 +8,19 @@ from typing import Any
 
 import numpy as np
 
-from easyrag.config import get_postgres_dsn, get_qdrant_api_key, get_qdrant_collection_prefix, get_qdrant_url
+from easyrag.config import (
+    get_postgres_dsn,
+    get_qdrant_api_key,
+    get_qdrant_collection_prefix,
+    get_qdrant_url,
+)
 from easyrag.rag.storage.base import BaseTaskStatusStorage, BaseVectorStorage
-from easyrag.rag.storage.local import JSONDocStatusStorage, JSONKVStorage, NetworkXGraphStorage, TokenVectorStorage
+from easyrag.rag.storage.local import (
+    JSONDocStatusStorage,
+    JSONKVStorage,
+    NetworkXGraphStorage,
+    TokenVectorStorage,
+)
 
 try:
     import httpx
@@ -49,7 +59,9 @@ def _require_postgres() -> str:
 
     dsn = get_postgres_dsn()
     if psycopg is None:
-        raise RuntimeError("PostgreSQL backend requires `psycopg`. Install the `postgres` extra.")
+        raise RuntimeError(
+            "PostgreSQL backend requires `psycopg`. Install the `postgres` extra."
+        )
     if not dsn:
         raise RuntimeError("PostgreSQL backend requires `EASYRAG_POSTGRES_DSN`.")
     return dsn
@@ -177,7 +189,10 @@ def _ensure_postgres_schema(conn: Any) -> None:
 def _safe_collection_name(*parts: str) -> str:
     """Return a Qdrant-safe collection identifier."""
 
-    return "_".join(_SAFE_NAME_PATTERN.sub("_", part.strip()).strip("_").lower() or "default" for part in parts)
+    return "_".join(
+        _SAFE_NAME_PATTERN.sub("_", part.strip()).strip("_").lower() or "default"
+        for part in parts
+    )
 
 
 class PostgresKVStorage(JSONKVStorage):
@@ -196,61 +211,106 @@ class PostgresKVStorage(JSONKVStorage):
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("SELECT id, payload FROM documents WHERE workspace = %s", (self.workspace,))
-                self._documents = {str(item_id): dict(_json_load(payload, {})) for item_id, payload in cursor.fetchall()}
+                cursor.execute(
+                    "SELECT id, payload FROM documents WHERE workspace = %s",
+                    (self.workspace,),
+                )
+                self._documents = {
+                    str(item_id): dict(_json_load(payload, {}))
+                    for item_id, payload in cursor.fetchall()
+                }
 
-                cursor.execute("SELECT id, payload FROM chunks WHERE workspace = %s", (self.workspace,))
-                self._chunks = {str(item_id): dict(_json_load(payload, {})) for item_id, payload in cursor.fetchall()}
+                cursor.execute(
+                    "SELECT id, payload FROM chunks WHERE workspace = %s",
+                    (self.workspace,),
+                )
+                self._chunks = {
+                    str(item_id): dict(_json_load(payload, {}))
+                    for item_id, payload in cursor.fetchall()
+                }
 
-                cursor.execute("SELECT id, payload FROM summaries WHERE workspace = %s", (self.workspace,))
-                self._summaries = {str(item_id): dict(_json_load(payload, {})) for item_id, payload in cursor.fetchall()}
+                cursor.execute(
+                    "SELECT id, payload FROM summaries WHERE workspace = %s",
+                    (self.workspace,),
+                )
+                self._summaries = {
+                    str(item_id): dict(_json_load(payload, {}))
+                    for item_id, payload in cursor.fetchall()
+                }
 
-                cursor.execute("SELECT namespace, key, value FROM cache WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "SELECT namespace, key, value FROM cache WHERE workspace = %s",
+                    (self.workspace,),
+                )
                 for namespace, key, value in cursor.fetchall():
-                    self._cache.setdefault(str(namespace), {})[str(key)] = _json_load(value, None)
+                    self._cache.setdefault(str(namespace), {})[str(key)] = _json_load(
+                        value, None
+                    )
 
     async def finalize(self) -> None:
         dsn = _require_postgres()
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM documents WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "DELETE FROM documents WHERE workspace = %s", (self.workspace,)
+                )
                 cursor.executemany(
                     "INSERT INTO documents (workspace, id, payload) VALUES (%s, %s, %s)",
-                    [(self.workspace, item_id, _json_dump(payload)) for item_id, payload in self._documents.items()],
+                    [
+                        (self.workspace, item_id, _json_dump(payload))
+                        for item_id, payload in self._documents.items()
+                    ],
                 )
 
-                cursor.execute("DELETE FROM chunks WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "DELETE FROM chunks WHERE workspace = %s", (self.workspace,)
+                )
                 cursor.executemany(
                     "INSERT INTO chunks (workspace, id, document_id, payload) VALUES (%s, %s, %s, %s)",
                     [
-                        (self.workspace, item_id, str(payload.get("document_id", "")), _json_dump(payload))
+                        (
+                            self.workspace,
+                            item_id,
+                            str(payload.get("document_id", "")),
+                            _json_dump(payload),
+                        )
                         for item_id, payload in self._chunks.items()
                     ],
                 )
 
-                cursor.execute("DELETE FROM summaries WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "DELETE FROM summaries WHERE workspace = %s", (self.workspace,)
+                )
                 cursor.executemany(
                     "INSERT INTO summaries (workspace, id, document_id, payload) VALUES (%s, %s, %s, %s)",
                     [
                         (
                             self.workspace,
                             item_id,
-                            str(payload.get("document_id", "") or payload.get("metadata", {}).get("doc_id", "")),
+                            str(
+                                payload.get("document_id", "")
+                                or payload.get("metadata", {}).get("doc_id", "")
+                            ),
                             _json_dump(payload),
                         )
                         for item_id, payload in self._summaries.items()
                     ],
                 )
 
-                cursor.execute("DELETE FROM cache WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "DELETE FROM cache WHERE workspace = %s", (self.workspace,)
+                )
                 cache_rows = [
                     (self.workspace, namespace, key, _json_dump(value))
                     for namespace, bucket in self._cache.items()
                     for key, value in bucket.items()
                 ]
                 if cache_rows:
-                    cursor.executemany("INSERT INTO cache (workspace, namespace, key, value) VALUES (%s, %s, %s, %s)", cache_rows)
+                    cursor.executemany(
+                        "INSERT INTO cache (workspace, namespace, key, value) VALUES (%s, %s, %s, %s)",
+                        cache_rows,
+                    )
             conn.commit()
 
 
@@ -262,14 +322,21 @@ class PostgresGraphStorage(NetworkXGraphStorage):
         self._dsn = get_postgres_dsn()
 
     async def initialize(self) -> None:
-        self._graph = self._graph.__class__() if hasattr(self._graph, "__class__") and hasattr(self._graph, "add_node") else {"nodes": {}, "edges": {}}
+        self._graph = (
+            self._graph.__class__()
+            if hasattr(self._graph, "__class__") and hasattr(self._graph, "add_node")
+            else {"nodes": {}, "edges": {}}
+        )
         self._relations = {}
         dsn = _require_postgres()
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             alias_map: dict[str, list[str]] = {}
             with conn.cursor() as cursor:
-                cursor.execute("SELECT entity_id, alias FROM entity_aliases WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "SELECT entity_id, alias FROM entity_aliases WHERE workspace = %s",
+                    (self.workspace,),
+                )
                 for entity_id, alias in cursor.fetchall():
                     alias_map.setdefault(str(entity_id), []).append(str(alias))
 
@@ -303,13 +370,21 @@ class PostgresGraphStorage(NetworkXGraphStorage):
                         },
                     )
 
-                cursor.execute("SELECT id, payload FROM graph_nodes WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "SELECT id, payload FROM graph_nodes WHERE workspace = %s",
+                    (self.workspace,),
+                )
                 for node_id, payload in cursor.fetchall():
                     self._set_node_data(str(node_id), dict(_json_load(payload, {})))
 
-                cursor.execute("SELECT source, target, payload FROM graph_edges WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "SELECT source, target, payload FROM graph_edges WHERE workspace = %s",
+                    (self.workspace,),
+                )
                 for source, target, payload in cursor.fetchall():
-                    self._set_edge_data(str(source), str(target), dict(_json_load(payload, {})))
+                    self._set_edge_data(
+                        str(source), str(target), dict(_json_load(payload, {}))
+                    )
 
                 cursor.execute(
                     """
@@ -342,11 +417,21 @@ class PostgresGraphStorage(NetworkXGraphStorage):
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM entity_aliases WHERE workspace = %s", (self.workspace,))
-                cursor.execute("DELETE FROM entities WHERE workspace = %s", (self.workspace,))
-                cursor.execute("DELETE FROM graph_nodes WHERE workspace = %s", (self.workspace,))
-                cursor.execute("DELETE FROM graph_edges WHERE workspace = %s", (self.workspace,))
-                cursor.execute("DELETE FROM relations WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "DELETE FROM entity_aliases WHERE workspace = %s", (self.workspace,)
+                )
+                cursor.execute(
+                    "DELETE FROM entities WHERE workspace = %s", (self.workspace,)
+                )
+                cursor.execute(
+                    "DELETE FROM graph_nodes WHERE workspace = %s", (self.workspace,)
+                )
+                cursor.execute(
+                    "DELETE FROM graph_edges WHERE workspace = %s", (self.workspace,)
+                )
+                cursor.execute(
+                    "DELETE FROM relations WHERE workspace = %s", (self.workspace,)
+                )
 
                 entity_rows: list[tuple[Any, ...]] = []
                 alias_rows: list[tuple[Any, ...]] = []
@@ -361,7 +446,9 @@ class PostgresGraphStorage(NetworkXGraphStorage):
                                 str(node.get("description", "")),
                                 str(node.get("manual_description", "")),
                                 _json_dump(list(node.get("entity_types", []) or [])),
-                                _json_dump(list(node.get("manual_entity_types", []) or [])),
+                                _json_dump(
+                                    list(node.get("manual_entity_types", []) or [])
+                                ),
                                 _json_dump(dict(node.get("owners", {}))),
                                 _json_dump(dict(node.get("metadata", {}))),
                                 _json_dump(list(node.get("provenance", []) or [])),
@@ -394,7 +481,10 @@ class PostgresGraphStorage(NetworkXGraphStorage):
                         alias_rows,
                     )
                 if node_rows:
-                    cursor.executemany("INSERT INTO graph_nodes (workspace, id, payload) VALUES (%s, %s, %s)", node_rows)
+                    cursor.executemany(
+                        "INSERT INTO graph_nodes (workspace, id, payload) VALUES (%s, %s, %s)",
+                        node_rows,
+                    )
 
                 edge_rows = [
                     (self.workspace, source, target, _json_dump(edge))
@@ -447,7 +537,10 @@ class PostgresDocStatusStorage(JSONDocStatusStorage):
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("SELECT document_id, status, metadata FROM doc_status WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "SELECT document_id, status, metadata FROM doc_status WHERE workspace = %s",
+                    (self.workspace,),
+                )
                 self._statuses = {
                     str(document_id): {
                         "document_id": str(document_id),
@@ -462,7 +555,9 @@ class PostgresDocStatusStorage(JSONDocStatusStorage):
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM doc_status WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "DELETE FROM doc_status WHERE workspace = %s", (self.workspace,)
+                )
                 rows = [
                     (
                         self.workspace,
@@ -494,7 +589,10 @@ class PostgresTaskStatusStorage(BaseTaskStatusStorage):
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("SELECT task_id, payload FROM task_status WHERE workspace = %s", (self.workspace,))
+                cursor.execute(
+                    "SELECT task_id, payload FROM task_status WHERE workspace = %s",
+                    (self.workspace,),
+                )
                 self._tasks = {
                     str(task_id): dict(_json_load(payload, {}))
                     for task_id, payload in cursor.fetchall()
@@ -505,10 +603,18 @@ class PostgresTaskStatusStorage(BaseTaskStatusStorage):
         with psycopg.connect(dsn) as conn:
             _ensure_postgres_schema(conn)
             with conn.cursor() as cursor:
-                cursor.execute("DELETE FROM task_status WHERE workspace = %s", (self.workspace,))
-                rows = [(self.workspace, task_id, _json_dump(payload)) for task_id, payload in self._tasks.items()]
+                cursor.execute(
+                    "DELETE FROM task_status WHERE workspace = %s", (self.workspace,)
+                )
+                rows = [
+                    (self.workspace, task_id, _json_dump(payload))
+                    for task_id, payload in self._tasks.items()
+                ]
                 if rows:
-                    cursor.executemany("INSERT INTO task_status (workspace, task_id, payload) VALUES (%s, %s, %s)", rows)
+                    cursor.executemany(
+                        "INSERT INTO task_status (workspace, task_id, payload) VALUES (%s, %s, %s)",
+                        rows,
+                    )
             conn.commit()
 
     async def upsert_task(self, task: dict[str, Any]) -> None:
@@ -579,7 +685,9 @@ class QdrantVectorStorage(BaseVectorStorage):
     def _collection_name(self, namespace: str) -> str:
         return _safe_collection_name(self._collection_prefix, self.workspace, namespace)
 
-    def _request(self, method: str, path: str, *, json_payload: Any | None = None) -> dict[str, Any]:
+    def _request(
+        self, method: str, path: str, *, json_payload: Any | None = None
+    ) -> dict[str, Any]:
         if httpx is None:
             raise RuntimeError("Qdrant backend requires `httpx`.")
         response = httpx.request(
@@ -590,7 +698,9 @@ class QdrantVectorStorage(BaseVectorStorage):
             timeout=20.0,
         )
         if response.status_code >= 400:
-            raise RuntimeError(f"Qdrant request failed: {response.status_code} {response.text}")
+            raise RuntimeError(
+                f"Qdrant request failed: {response.status_code} {response.text}"
+            )
         if not response.content:
             return {}
         return dict(response.json())
@@ -599,7 +709,9 @@ class QdrantVectorStorage(BaseVectorStorage):
         if not items or self._embedding_func is None:
             return np.zeros((0, 0), dtype=np.float32)
         try:
-            inputs = [item.get("embedding_input", str(item.get("text", ""))) for item in items]
+            inputs = [
+                item.get("embedding_input", str(item.get("text", ""))) for item in items
+            ]
             values = self._embedding_func(inputs)
             embeddings = np.array(values, dtype=np.float32)
             if embeddings.ndim != 2 or embeddings.shape[0] != len(items):
@@ -648,7 +760,9 @@ class QdrantVectorStorage(BaseVectorStorage):
             }
             for index, item in enumerate(items)
         ]
-        self._request("PUT", f"/collections/{collection}/points", json_payload={"points": points})
+        self._request(
+            "PUT", f"/collections/{collection}/points", json_payload={"points": points}
+        )
 
     async def delete(self, namespace: str, ids: list[str]) -> int:
         normalized_ids = [str(item_id) for item_id in ids if str(item_id).strip()]
@@ -665,7 +779,9 @@ class QdrantVectorStorage(BaseVectorStorage):
             return 0
         return len(normalized_ids)
 
-    async def _list_ids_by_document(self, namespace: str, document_id: str) -> list[str]:
+    async def _list_ids_by_document(
+        self, namespace: str, document_id: str
+    ) -> list[str]:
         try:
             payload = self._request(
                 "POST",
@@ -683,7 +799,11 @@ class QdrantVectorStorage(BaseVectorStorage):
             )
         except Exception:
             return []
-        return [str(item.get("id", "")) for item in list(payload.get("result", {}).get("points", [])) if str(item.get("id", "")).strip()]
+        return [
+            str(item.get("id", ""))
+            for item in list(payload.get("result", {}).get("points", []))
+            if str(item.get("id", "")).strip()
+        ]
 
     async def delete_by_document(self, document_id: str) -> dict[str, int]:
         deleted: dict[str, int] = {}
@@ -695,13 +815,17 @@ class QdrantVectorStorage(BaseVectorStorage):
             deleted[namespace] = await self.delete(namespace, ids)
         return deleted
 
-    async def similarity_search(self, namespace: str, query: str, top_k: int) -> list[dict[str, Any]]:
+    async def similarity_search(
+        self, namespace: str, query: str, top_k: int
+    ) -> list[dict[str, Any]]:
         if self._embedding_func is None or top_k <= 0:
             return await self._token_fallback.similarity_search(namespace, query, top_k)
         try:
             query_embedding = np.array(self._embedding_func([query]), dtype=np.float32)
             if query_embedding.ndim != 2 or query_embedding.shape[0] != 1:
-                return await self._token_fallback.similarity_search(namespace, query, top_k)
+                return await self._token_fallback.similarity_search(
+                    namespace, query, top_k
+                )
             payload = self._request(
                 "POST",
                 f"/collections/{self._collection_name(namespace)}/points/search",
@@ -734,7 +858,9 @@ class QdrantVectorStorage(BaseVectorStorage):
         stats: dict[str, Any] = {}
         for namespace in self._namespaces:
             try:
-                payload = self._request("GET", f"/collections/{self._collection_name(namespace)}")
+                payload = self._request(
+                    "GET", f"/collections/{self._collection_name(namespace)}"
+                )
                 stats[namespace] = int(payload.get("result", {}).get("points_count", 0))
             except Exception:
                 stats[namespace] = 0

@@ -10,7 +10,10 @@ try:
     from pydantic import BaseModel as PydanticBaseModel
     from pydantic import Field
 except ImportError:  # pragma: no cover - exercised only without optional deps.
-    def Field(default: Any = None, default_factory: Callable[[], Any] | None = None, **_: Any) -> Any:
+
+    def Field(
+        default: Any = None, default_factory: Callable[[], Any] | None = None, **_: Any
+    ) -> Any:
         """Return a default value compatible with a subset of Pydantic's Field API."""
 
         if default_factory is not None:
@@ -48,7 +51,9 @@ except ImportError:  # pragma: no cover - exercised only without optional deps.
             raise TypeError(f"Cannot validate {type(value)!r} as {cls.__name__}")
 
         def __repr__(self) -> str:
-            items = ", ".join(f"{key}={value!r}" for key, value in self.model_dump().items())
+            items = ", ".join(
+                f"{key}={value!r}" for key, value in self.model_dump().items()
+            )
             return f"{self.__class__.__name__}({items})"
 
 
@@ -70,6 +75,7 @@ BaseModel = PydanticBaseModel
 try:
     from langchain_core.documents import Document
 except ImportError:  # pragma: no cover - exercised only without optional deps.
+
     @dataclass
     class Document:
         """Minimal stand-in for LangChain Document."""
@@ -81,10 +87,13 @@ except ImportError:  # pragma: no cover - exercised only without optional deps.
 try:
     from langchain_core.tools import BaseTool, tool
 except ImportError:  # pragma: no cover - exercised only without optional deps.
+
     class BaseTool:
         """Minimal read-only tool wrapper compatible with the project's needs."""
 
-        def __init__(self, name: str, description: str, func: Callable[..., Any]) -> None:
+        def __init__(
+            self, name: str, description: str, func: Callable[..., Any]
+        ) -> None:
             self.name = name
             self.description = description
             self._func = func
@@ -96,7 +105,9 @@ except ImportError:  # pragma: no cover - exercised only without optional deps.
                 return self._func(**input_data)
             return self._func(input_data)
 
-    def tool(func: Callable[..., Any] | None = None, *, description: str | None = None) -> Callable[..., Any]:
+    def tool(
+        func: Callable[..., Any] | None = None, *, description: str | None = None
+    ) -> Callable[..., Any]:
         """Fallback decorator that wraps a function into a simple tool object."""
 
         def decorator(inner: Callable[..., Any]) -> BaseTool:

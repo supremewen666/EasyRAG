@@ -82,14 +82,18 @@ class BaseVectorStorage(BaseStorage):
         """Delete records owned by one document across namespaces."""
 
     @abstractmethod
-    async def similarity_search(self, namespace: str, query: str, top_k: int) -> list[dict[str, Any]]:
+    async def similarity_search(
+        self, namespace: str, query: str, top_k: int
+    ) -> list[dict[str, Any]]:
         """Search one namespace and return ranked records."""
 
     @abstractmethod
     async def get_stats(self) -> dict[str, Any]:
         """Return namespace counts."""
 
-    def set_embedding_func(self, embedding_func: Callable[[list[str]], list[list[float]]] | None) -> None:
+    def set_embedding_func(
+        self, embedding_func: Callable[[list[str]], list[list[float]]] | None
+    ) -> None:
         """Inject an embedding function into the storage backend."""
 
         del embedding_func
@@ -112,7 +116,9 @@ class BaseGraphStorage(BaseStorage):
         """Insert or update graph edges."""
 
     @abstractmethod
-    async def upsert_relation_records(self, relations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    async def upsert_relation_records(
+        self, relations: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Insert or update first-class semantic relation records."""
 
     @abstractmethod
@@ -128,11 +134,15 @@ class BaseGraphStorage(BaseStorage):
         """Return one semantic relation record if it exists."""
 
     @abstractmethod
-    async def list_relations(self, *, entity_id: str | None = None) -> list[dict[str, Any]]:
+    async def list_relations(
+        self, *, entity_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """List semantic relation records, optionally filtered by entity."""
 
     @abstractmethod
-    async def resolve_entity_ids(self, names: list[str], *, limit: int = 20) -> list[dict[str, Any]]:
+    async def resolve_entity_ids(
+        self, names: list[str], *, limit: int = 20
+    ) -> list[dict[str, Any]]:
         """Resolve query-time entity names against labels and aliases."""
 
     @abstractmethod
@@ -144,11 +154,15 @@ class BaseGraphStorage(BaseStorage):
         """Delete one semantic relation record and refresh derived graph state."""
 
     @abstractmethod
-    async def merge_entities(self, source_entity_id: str, target_entity_id: str) -> dict[str, Any]:
+    async def merge_entities(
+        self, source_entity_id: str, target_entity_id: str
+    ) -> dict[str, Any]:
         """Merge one entity into another and rewrite graph references."""
 
     @abstractmethod
-    async def merge_relations(self, source_relation_id: str, target_relation_id: str) -> dict[str, Any]:
+    async def merge_relations(
+        self, source_relation_id: str, target_relation_id: str
+    ) -> dict[str, Any]:
         """Merge one relation into another and preserve the target identifier."""
 
     @abstractmethod
@@ -162,7 +176,9 @@ class BaseGraphStorage(BaseStorage):
         """Return ranked neighbor nodes."""
 
     @abstractmethod
-    async def top_nodes(self, *, kind: str | None = None, limit: int = 10) -> list[dict[str, Any]]:
+    async def top_nodes(
+        self, *, kind: str | None = None, limit: int = 10
+    ) -> list[dict[str, Any]]:
         """Return graph nodes ranked by centrality."""
 
     @abstractmethod

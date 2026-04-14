@@ -13,12 +13,20 @@ from easyrag.rag.generation.pipeline import generate_answer
 from easyrag.rag.indexing.chunking import ChunkingConfig, build_chunker_registry
 from easyrag.rag.indexing.loaders import load_repo_documents
 from easyrag.rag.indexing.pipeline import ingest_documents
-from easyrag.rag.indexing.prepare import prepare_documents_for_insert, prepare_documents_for_insert_with_report
+from easyrag.rag.indexing.prepare import (
+    prepare_documents_for_insert,
+    prepare_documents_for_insert_with_report,
+)
 from easyrag.rag.knowledge.curation import build_entity_payload, build_relation_payload
 from easyrag.rag.knowledge.sync import sync_entity_vectors, sync_relation_vectors
 from easyrag.rag.retrieval.pipeline import execute_query
 from easyrag.rag.retrieval.preprocess import QueryPreprocessor
-from easyrag.rag.storage.base import BaseDocStatusStorage, BaseGraphStorage, BaseKVStorage, BaseVectorStorage
+from easyrag.rag.storage.base import (
+    BaseDocStatusStorage,
+    BaseGraphStorage,
+    BaseKVStorage,
+    BaseVectorStorage,
+)
 from easyrag.rag.storage.bundles import resolve_storage_bundle
 from easyrag.rag.types import (
     AnswerModelFunc,
@@ -44,7 +52,9 @@ from easyrag.rag.providers import (
 from easyrag.rag.utils import slugify
 
 
-def _resolve_kg_extraction_config(config: KGExtractionConfig | None) -> KGExtractionConfig:
+def _resolve_kg_extraction_config(
+    config: KGExtractionConfig | None,
+) -> KGExtractionConfig:
     """Resolve KG extraction config with env-backed defaults."""
 
     if config is not None:
@@ -56,7 +66,9 @@ def _resolve_kg_extraction_config(config: KGExtractionConfig | None) -> KGExtrac
             max_relations_per_chunk=config.max_relations_per_chunk,
             fallback_to_rules=config.fallback_to_rules,
         )
-    return KGExtractionConfig(entity_types=get_kg_entity_types() or DEFAULT_KG_ENTITY_TYPES)
+    return KGExtractionConfig(
+        entity_types=get_kg_entity_types() or DEFAULT_KG_ENTITY_TYPES
+    )
 
 
 class EasyRAG:
@@ -85,19 +97,35 @@ class EasyRAG:
         self.working_dir = Path(working_dir or get_rag_working_dir()).resolve()
         self.workspace = workspace or get_rag_workspace()
         self.workspace_dir = self.working_dir / self.workspace
-        self.llm_model_func = llm_model_func or (default_kg_model_func if can_use_openai_compatible_models() else None)
-        self.query_model_func = query_model_func or (default_query_model_func if can_use_openai_compatible_models() else None)
-        self.embedding_func = embedding_func or (default_embedding_func if can_use_openai_compatible_models() else None)
-        self.reranker_func = reranker_func or (default_reranker_func if can_use_openai_compatible_models() else None)
+        self.llm_model_func = llm_model_func or (
+            default_kg_model_func if can_use_openai_compatible_models() else None
+        )
+        self.query_model_func = query_model_func or (
+            default_query_model_func if can_use_openai_compatible_models() else None
+        )
+        self.embedding_func = embedding_func or (
+            default_embedding_func if can_use_openai_compatible_models() else None
+        )
+        self.reranker_func = reranker_func or (
+            default_reranker_func if can_use_openai_compatible_models() else None
+        )
         self.answer_model_func = answer_model_func
         self.kg_extraction_config = _resolve_kg_extraction_config(kg_extraction_config)
         self.chunking_config = chunking_config or ChunkingConfig()
         self.chunker_registry = chunker_registry or build_chunker_registry()
         self.query_preprocessor = QueryPreprocessor(self.query_model_func)
-        self.kv_storage = (kv_storage_cls or resolved_bundle[0])(str(self.working_dir), self.workspace)
-        self.vector_storage = (vector_storage_cls or resolved_bundle[1])(str(self.working_dir), self.workspace)
-        self.graph_storage = (graph_storage_cls or resolved_bundle[2])(str(self.working_dir), self.workspace)
-        self.doc_status_storage = (doc_status_storage_cls or resolved_bundle[3])(str(self.working_dir), self.workspace)
+        self.kv_storage = (kv_storage_cls or resolved_bundle[0])(
+            str(self.working_dir), self.workspace
+        )
+        self.vector_storage = (vector_storage_cls or resolved_bundle[1])(
+            str(self.working_dir), self.workspace
+        )
+        self.graph_storage = (graph_storage_cls or resolved_bundle[2])(
+            str(self.working_dir), self.workspace
+        )
+        self.doc_status_storage = (doc_status_storage_cls or resolved_bundle[3])(
+            str(self.working_dir), self.workspace
+        )
         self.vector_storage.set_embedding_func(self.embedding_func)
         self._initialized = False
 
@@ -150,15 +178,19 @@ class EasyRAG:
         """Insert one or more documents into the configured workspace."""
 
         self._ensure_initialized()
-        documents, preparation_report = prepare_documents_for_insert_with_report(texts, ids=ids, file_paths=file_paths)
+        documents, preparation_report = prepare_documents_for_insert_with_report(
+            texts, ids=ids, file_paths=file_paths
+        )
         stats = await ingest_documents(self, documents)
         quality_counts = dict(stats.get("quality_issue_counts", {}))
         if preparation_report.get("empty_after_normalization", 0):
-            quality_counts["empty_after_normalization"] = int(quality_counts.get("empty_after_normalization", 0)) + int(
-                preparation_report["empty_after_normalization"]
-            )
+            quality_counts["empty_after_normalization"] = int(
+                quality_counts.get("empty_after_normalization", 0)
+            ) + int(preparation_report["empty_after_normalization"])
         stats["quality_issue_counts"] = quality_counts
-        stats["skipped_documents"] = int(stats.get("skipped_documents", 0)) + int(preparation_report.get("empty_after_normalization", 0))
+        stats["skipped_documents"] = int(stats.get("skipped_documents", 0)) + int(
+            preparation_report.get("empty_after_normalization", 0)
+        )
         return stats
 
     async def ainsert_documents(self, documents: Sequence[Document]) -> dict[str, Any]:
@@ -180,7 +212,9 @@ class EasyRAG:
             "graph_entities": 0,
             "graph_relations": 0,
         }
-        for doc_id in dict.fromkeys(str(value) for value in doc_ids if str(value).strip()):
+        for doc_id in dict.fromkeys(
+            str(value) for value in doc_ids if str(value).strip()
+        ):
             kv_stats = await self.kv_storage.delete_by_document(doc_id)
             vector_stats = await self.vector_storage.delete_by_document(doc_id)
             graph_stats = await self.graph_storage.delete_by_document(doc_id)
@@ -199,7 +233,9 @@ class EasyRAG:
             deleted["vectors"] += int(entity_vector_stats.get("deleted", 0))
             deleted["statuses"] += int(status_deleted)
             deleted["graph_entities"] += len(removed_entity_ids)
-            deleted["graph_relations"] += len(graph_stats.get("removed_relation_ids", []))
+            deleted["graph_relations"] += len(
+                graph_stats.get("removed_relation_ids", [])
+            )
         return deleted
 
     async def aquery(self, query: str, param: QueryParam) -> QueryResult:
@@ -272,20 +308,33 @@ class EasyRAG:
         if existing is None:
             raise ValueError(f"Unknown entity: {entity_id}")
         merged_aliases = list(aliases or [])
-        if label and str(existing.get("label", "")).strip() and label != str(existing.get("label", "")).strip():
+        if (
+            label
+            and str(existing.get("label", "")).strip()
+            and label != str(existing.get("label", "")).strip()
+        ):
             merged_aliases.append(str(existing.get("label", "")).strip())
         payload = self._build_entity_payload(
             entity_id=entity_id,
             label=label or str(existing.get("label", "")),
-            entity_types=entity_types if entity_types is not None else list(existing.get("entity_types", []) or []),
-            description=str(existing.get("manual_description", existing.get("description", ""))) if description is None else description,
+            entity_types=entity_types
+            if entity_types is not None
+            else list(existing.get("entity_types", []) or []),
+            description=str(
+                existing.get("manual_description", existing.get("description", ""))
+            )
+            if description is None
+            else description,
             aliases=list(existing.get("aliases", []) or []) + merged_aliases,
             metadata=metadata,
             provenance=provenance,
         )
         await self.graph_storage.upsert_nodes([payload])
         await sync_entity_vectors(self, [entity_id])
-        relation_ids = [str(relation["id"]) for relation in await self.graph_storage.list_relations(entity_id=entity_id)]
+        relation_ids = [
+            str(relation["id"])
+            for relation in await self.graph_storage.list_relations(entity_id=entity_id)
+        ]
         if relation_ids:
             await sync_relation_vectors(self, relation_ids)
         entity = await self.graph_storage.get_node(entity_id)
@@ -302,18 +351,29 @@ class EasyRAG:
             await self.vector_storage.delete("relation", removed_relation_ids)
         return result
 
-    async def amerge_entities(self, source_entity_id: str, target_entity_id: str) -> dict[str, Any]:
+    async def amerge_entities(
+        self, source_entity_id: str, target_entity_id: str
+    ) -> dict[str, Any]:
         """Merge one entity into another and refresh vectors."""
 
         self._ensure_initialized()
-        result = await self.graph_storage.merge_entities(source_entity_id, target_entity_id)
+        result = await self.graph_storage.merge_entities(
+            source_entity_id, target_entity_id
+        )
         if int(result.get("merged", 0)) <= 0:
             return result
         await self.vector_storage.delete("entity", [source_entity_id])
         await sync_entity_vectors(self, [target_entity_id])
         removed_relation_ids = list(result.get("removed_relation_ids", []))
-        surviving_relation_ids = [str(relation["id"]) for relation in await self.graph_storage.list_relations(entity_id=target_entity_id)]
-        await sync_relation_vectors(self, surviving_relation_ids, removed_relation_ids=removed_relation_ids)
+        surviving_relation_ids = [
+            str(relation["id"])
+            for relation in await self.graph_storage.list_relations(
+                entity_id=target_entity_id
+            )
+        ]
+        await sync_relation_vectors(
+            self, surviving_relation_ids, removed_relation_ids=removed_relation_ids
+        )
         return result
 
     async def acreate_relation(
@@ -365,14 +425,20 @@ class EasyRAG:
         if existing is None:
             raise ValueError(f"Unknown relation: {relation_id}")
         payload = await self._build_relation_payload(
-            source_entity_id=source_entity_id or str(existing.get("source_entity_id", "")),
-            target_entity_id=target_entity_id or str(existing.get("target_entity_id", "")),
+            source_entity_id=source_entity_id
+            or str(existing.get("source_entity_id", "")),
+            target_entity_id=target_entity_id
+            or str(existing.get("target_entity_id", "")),
             relation=relation or str(existing.get("relation", "related_to")),
             relation_id=relation_id,
-            description=str(existing.get("description", "")) if description is None else description,
+            description=str(existing.get("description", ""))
+            if description is None
+            else description,
             weight=float(existing.get("weight", 1.0)) if weight is None else weight,
             metadata={**dict(existing.get("metadata", {})), **dict(metadata or {})},
-            provenance=provenance if provenance is not None else list(existing.get("provenance", []) or []),
+            provenance=provenance
+            if provenance is not None
+            else list(existing.get("provenance", []) or []),
         )
         await self.graph_storage.upsert_relation_records([payload])
         await sync_relation_vectors(self, [relation_id])
@@ -387,14 +453,20 @@ class EasyRAG:
         await self.vector_storage.delete("relation", [relation_id])
         return result
 
-    async def amerge_relations(self, source_relation_id: str, target_relation_id: str) -> dict[str, Any]:
+    async def amerge_relations(
+        self, source_relation_id: str, target_relation_id: str
+    ) -> dict[str, Any]:
         """Merge two semantic relations and preserve the target identifier."""
 
         self._ensure_initialized()
-        result = await self.graph_storage.merge_relations(source_relation_id, target_relation_id)
+        result = await self.graph_storage.merge_relations(
+            source_relation_id, target_relation_id
+        )
         if int(result.get("merged", 0)) <= 0:
             return result
-        await sync_relation_vectors(self, [target_relation_id], removed_relation_ids=[source_relation_id])
+        await sync_relation_vectors(
+            self, [target_relation_id], removed_relation_ids=[source_relation_id]
+        )
         return result
 
     async def ainsert_custom_kg(
@@ -408,7 +480,9 @@ class EasyRAG:
         """Insert manually curated entities and relations into the active workspace."""
 
         self._ensure_initialized()
-        normalized_batch_id = batch_id or slugify(source_label or uuid4().hex) or uuid4().hex
+        normalized_batch_id = (
+            batch_id or slugify(source_label or uuid4().hex) or uuid4().hex
+        )
         provenance = [f"manual:{normalized_batch_id}"]
         entity_payloads: list[dict[str, Any]] = []
         entity_ids: list[str] = []
@@ -440,7 +514,9 @@ class EasyRAG:
             relation_name = str(relation.get("relation", "")).strip()
             if not source_entity_id or not target_entity_id or not relation_name:
                 continue
-            relation_id = str(relation.get("id", "")).strip() or f"relation::{uuid4().hex}"
+            relation_id = (
+                str(relation.get("id", "")).strip() or f"relation::{uuid4().hex}"
+            )
             relation_payloads.append(
                 await self._build_relation_payload(
                     source_entity_id=source_entity_id,
@@ -459,7 +535,10 @@ class EasyRAG:
 
         entity_stats = await sync_entity_vectors(self, entity_ids)
         relation_stats = await sync_relation_vectors(self, relation_ids)
-        return {"entities": entity_stats["upserted"], "relations": relation_stats["upserted"]}
+        return {
+            "entities": entity_stats["upserted"],
+            "relations": relation_stats["upserted"],
+        }
 
     async def get_stats(self) -> dict[str, int]:
         """Return aggregated storage stats for diagnostics and build output."""
@@ -475,7 +554,11 @@ class EasyRAG:
             "relation_vectors": int(vector_stats.get("relation", 0)),
             "chunk_vectors": int(vector_stats.get("chunk", 0)),
             "summary_vectors": int(vector_stats.get("summary", 0)),
-            "vector_backend": str(vector_stats.get("vector_backend", self.vector_storage.get_backend_name())),
+            "vector_backend": str(
+                vector_stats.get(
+                    "vector_backend", self.vector_storage.get_backend_name()
+                )
+            ),
             "graph_nodes": int(graph_stats.get("nodes", 0)),
             "graph_edges": int(graph_stats.get("edges", 0)),
             "status_records": int(status_stats.get("documents", 0)),
@@ -488,7 +571,9 @@ class EasyRAG:
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:
-            raise RuntimeError("EasyRAG storages are not initialized. Call await rag.initialize_storages() first.")
+            raise RuntimeError(
+                "EasyRAG storages are not initialized. Call await rag.initialize_storages() first."
+            )
 
     def _build_entity_payload(
         self,

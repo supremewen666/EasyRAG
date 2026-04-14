@@ -16,7 +16,12 @@ from easyrag.config.models import (
     get_rerank_model_name,
     has_openai_compatible_config,
 )
-from easyrag.config.runtime import PROJECT_ROOT, get_data_dir, get_repo_root, load_environment
+from easyrag.config.runtime import (
+    PROJECT_ROOT,
+    get_data_dir,
+    get_repo_root,
+    load_environment,
+)
 from easyrag.config.storage import (
     get_postgres_dsn,
     get_qdrant_api_key,

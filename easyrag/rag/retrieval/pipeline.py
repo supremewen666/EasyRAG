@@ -6,7 +6,12 @@ from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
 from easyrag.rag.retrieval.fusion import combine_mode_results, trim_records
-from easyrag.rag.retrieval.hydration import build_citations, chunks_to_documents, detect_vector_backend, hydrate_records
+from easyrag.rag.retrieval.hydration import (
+    build_citations,
+    chunks_to_documents,
+    detect_vector_backend,
+    hydrate_records,
+)
 from easyrag.rag.retrieval.query_modes import run_variant_queries
 from easyrag.rag.types import QueryParam, QueryResult
 
@@ -18,7 +23,9 @@ def _duration_ms(start: float) -> float:
     return round((perf_counter() - start) * 1000.0, 3)
 
 
-def _matches_metadata_filters(record: dict[str, object], metadata_filters: dict[str, Any] | None) -> bool:
+def _matches_metadata_filters(
+    record: dict[str, object], metadata_filters: dict[str, Any] | None
+) -> bool:
     if not metadata_filters:
         return True
     metadata = record.get("metadata", {})
@@ -43,10 +50,14 @@ def _matches_metadata_filters(record: dict[str, object], metadata_filters: dict[
     return True
 
 
-def _apply_record_filters(records: list[dict[str, object]], param: QueryParam) -> list[dict[str, object]]:
+def _apply_record_filters(
+    records: list[dict[str, object]], param: QueryParam
+) -> list[dict[str, object]]:
     filtered: list[dict[str, object]] = []
     for record in records:
-        if param.min_score is not None and float(record.get("score", 0.0)) < float(param.min_score):
+        if param.min_score is not None and float(record.get("score", 0.0)) < float(
+            param.min_score
+        ):
             continue
         if not _matches_metadata_filters(record, param.metadata_filters):
             continue
@@ -64,7 +75,13 @@ async def execute_query(rag: "EasyRAG", query: str, param: QueryParam) -> QueryR
     prepare_ms = _duration_ms(prepare_started)
 
     candidate_started = perf_counter()
-    naive_hits, local_hits, global_hits, local_entities, relation_hits = await run_variant_queries(
+    (
+        naive_hits,
+        local_hits,
+        global_hits,
+        local_entities,
+        relation_hits,
+    ) = await run_variant_queries(
         rag,
         prepared.retrieval_queries,
         param,
@@ -80,18 +97,24 @@ async def execute_query(rag: "EasyRAG", query: str, param: QueryParam) -> QueryR
     elif mode == "hybrid":
         selected = combine_mode_results(param, (1.0, local_hits), (1.0, global_hits))
     elif mode == "mix":
-        selected = combine_mode_results(param, (1.0, local_hits), (1.0, global_hits), (0.85, naive_hits))
+        selected = combine_mode_results(
+            param, (1.0, local_hits), (1.0, global_hits), (0.85, naive_hits)
+        )
     else:
         raise ValueError(f"Unsupported query mode: {param.mode}")
 
     pre_filter_count = len(selected)
     filter_started = perf_counter()
     filtered_selected = _apply_record_filters(selected, param)
-    filtered_relation_hits = _apply_record_filters(relation_hits, QueryParam(min_score=param.min_score))
+    filtered_relation_hits = _apply_record_filters(
+        relation_hits, QueryParam(min_score=param.min_score)
+    )
     filter_ms = _duration_ms(filter_started)
 
     hydration_started = perf_counter()
-    hydrated = await hydrate_records(rag, trim_records(filtered_selected, param.chunk_top_k * 3))
+    hydrated = await hydrate_records(
+        rag, trim_records(filtered_selected, param.chunk_top_k * 3)
+    )
     hydration_ms = _duration_ms(hydration_started)
     rerank_applied = False
     rerank_started = perf_counter()
@@ -132,8 +155,12 @@ async def execute_query(rag: "EasyRAG", query: str, param: QueryParam) -> QueryR
                 "snippet": str(item.get("text", ""))[:200],
                 "score": float(item.get("score", 0.0)),
                 "relation": str(item.get("metadata", {}).get("relation", "")),
-                "source_entity_id": str(item.get("metadata", {}).get("source_entity_id", "")),
-                "target_entity_id": str(item.get("metadata", {}).get("target_entity_id", "")),
+                "source_entity_id": str(
+                    item.get("metadata", {}).get("source_entity_id", "")
+                ),
+                "target_entity_id": str(
+                    item.get("metadata", {}).get("target_entity_id", "")
+                ),
             }
             for item in trim_records(filtered_relation_hits, param.top_k)
         ],

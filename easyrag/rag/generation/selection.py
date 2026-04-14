@@ -28,7 +28,9 @@ def select_answer_citations(
         if not snippet:
             continue
         snippet_chars = len(snippet)
-        if selected and (len(selected) >= max_items or budget + snippet_chars > max_chars):
+        if selected and (
+            len(selected) >= max_items or budget + snippet_chars > max_chars
+        ):
             break
         cleaned["snippet"] = snippet
         selected.append(cleaned)

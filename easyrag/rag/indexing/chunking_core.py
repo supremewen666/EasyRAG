@@ -48,7 +48,9 @@ def _select_sliding_overlap(length: int, overlaps: tuple[int, ...]) -> int:
     return overlaps[-1]
 
 
-def sliding_window_chunk(document: Document, *, config: ChunkingConfig) -> list[Document]:
+def sliding_window_chunk(
+    document: Document, *, config: ChunkingConfig
+) -> list[Document]:
     """Chunk by fixed-size character windows with adaptive overlap."""
 
     text = document.page_content.strip()
@@ -99,7 +101,9 @@ def structured_chunk(document: Document, *, config: ChunkingConfig) -> list[Docu
     chunk_number = 0
     for index, match in enumerate(matches):
         section_start = match.start()
-        section_end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        section_end = (
+            matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        )
         section_text = text[section_start:section_end].strip()
         if not section_text:
             continue
@@ -123,7 +127,10 @@ def structured_chunk(document: Document, *, config: ChunkingConfig) -> list[Docu
             chunk_number += 1
             continue
 
-        sub_document = Document(page_content=section_text, metadata=_copy_metadata(document, title=section_title, doc_id=doc_id))
+        sub_document = Document(
+            page_content=section_text,
+            metadata=_copy_metadata(document, title=section_title, doc_id=doc_id),
+        )
         for sub_chunk in sliding_window_chunk(
             sub_document,
             config=ChunkingConfig(
@@ -141,8 +148,12 @@ def structured_chunk(document: Document, *, config: ChunkingConfig) -> list[Docu
             metadata["chunk_id"] = chunk_number
             metadata["chunk_uid"] = f"{doc_id}::chunk::{chunk_number}"
             metadata["chunk_strategy"] = "structured"
-            metadata["overlap_policy"] = f"heading+chars:{config.structured_secondary_overlap}"
-            chunks.append(Document(page_content=sub_chunk.page_content, metadata=metadata))
+            metadata["overlap_policy"] = (
+                f"heading+chars:{config.structured_secondary_overlap}"
+            )
+            chunks.append(
+                Document(page_content=sub_chunk.page_content, metadata=metadata)
+            )
             chunk_number += 1
     return chunks
 
@@ -156,7 +167,9 @@ def semantic_chunk(
     """Chunk by semantic boundaries derived from sentence embeddings."""
 
     text = document.page_content.strip()
-    sentences = [part.strip() for part in _SENTENCE_SPLIT_PATTERN.split(text) if part.strip()]
+    sentences = [
+        part.strip() for part in _SENTENCE_SPLIT_PATTERN.split(text) if part.strip()
+    ]
     if len(sentences) < config.semantic_min_sentences or embedding_func is None:
         return []
 

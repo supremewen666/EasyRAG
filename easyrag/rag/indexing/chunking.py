@@ -45,7 +45,9 @@ def chunk_with_strategy(
         chunker = rag.chunker_registry[strategy]
         try:
             if strategy == "semantic":
-                chunks = chunker(document, config=config, embedding_func=rag.embedding_func)
+                chunks = chunker(
+                    document, config=config, embedding_func=rag.embedding_func
+                )
             else:
                 chunks = chunker(document, config=config)
             if chunks:
@@ -58,7 +60,11 @@ def chunk_with_strategy(
         if chunks:
             return chunks
     if strategy == "semantic":
-        chunks = semantic_chunk(document, config=config, embedding_func=None if rag is None else rag.embedding_func)
+        chunks = semantic_chunk(
+            document,
+            config=config,
+            embedding_func=None if rag is None else rag.embedding_func,
+        )
         if chunks:
             return chunks
     return sliding_window_chunk(document, config=config)
@@ -79,7 +85,9 @@ def chunk_documents(
         strategy = chunk_strategy_override or select_chunk_strategy(document)
         if strategy == "semantic" and document_prefers_structured(document):
             strategy = "structured"
-        chunks.extend(chunk_with_strategy(document, config=chunking, strategy=strategy, rag=rag))
+        chunks.extend(
+            chunk_with_strategy(document, config=chunking, strategy=strategy, rag=rag)
+        )
     return chunks
 
 

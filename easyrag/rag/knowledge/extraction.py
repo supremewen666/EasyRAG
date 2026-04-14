@@ -43,23 +43,43 @@ def _infer_rule_entity_type(name: str, allowed_types: set[str]) -> str:
     """Pick a best-effort architecture-oriented type for heuristic extraction."""
 
     lowered = name.lower()
-    if "config" in allowed_types and (lowered.endswith(_CONFIG_SUFFIXES) or any(token in lowered for token in ("config", "setting", "env"))):
+    if "config" in allowed_types and (
+        lowered.endswith(_CONFIG_SUFFIXES)
+        or any(token in lowered for token in ("config", "setting", "env"))
+    ):
         return "config"
-    if "file" in allowed_types and ("/" in name or "\\" in name or lowered.endswith(_FILE_SUFFIXES)):
+    if "file" in allowed_types and (
+        "/" in name or "\\" in name or lowered.endswith(_FILE_SUFFIXES)
+    ):
         return "file"
-    if "workflow" in allowed_types and any(token in lowered for token in ("workflow", "pipeline", "process", "retrieval", "ingest")):
+    if "workflow" in allowed_types and any(
+        token in lowered
+        for token in ("workflow", "pipeline", "process", "retrieval", "ingest")
+    ):
         return "workflow"
-    if "service" in allowed_types and any(token in lowered for token in ("service", "server", "api")):
+    if "service" in allowed_types and any(
+        token in lowered for token in ("service", "server", "api")
+    ):
         return "service"
-    if "tool" in allowed_types and any(token in lowered for token in ("tool", "script", "cli", "command")):
+    if "tool" in allowed_types and any(
+        token in lowered for token in ("tool", "script", "cli", "command")
+    ):
         return "tool"
-    if "dependency" in allowed_types and any(token in lowered for token in ("dependency", "package", "library", "sdk")):
+    if "dependency" in allowed_types and any(
+        token in lowered for token in ("dependency", "package", "library", "sdk")
+    ):
         return "dependency"
-    if "module" in allowed_types and any(token in lowered for token in ("module", "package", "layer")):
+    if "module" in allowed_types and any(
+        token in lowered for token in ("module", "package", "layer")
+    ):
         return "module"
-    if "component" in allowed_types and any(token in lowered for token in ("component", "system", "engine")):
+    if "component" in allowed_types and any(
+        token in lowered for token in ("component", "system", "engine")
+    ):
         return "component"
-    if "interface" in allowed_types and any(token in lowered for token in ("interface", "contract", "schema")):
+    if "interface" in allowed_types and any(
+        token in lowered for token in ("interface", "contract", "schema")
+    ):
         return "interface"
     if "concept" in allowed_types:
         return "concept"
@@ -195,14 +215,24 @@ def extract_chunk_knowledge(
                 metadata=metadata,
             )
             if isinstance(payload, dict):
-                llm_entities = [item for item in payload.get("entities", []) if isinstance(item, dict)]
-                llm_relations = [item for item in payload.get("relations", []) if isinstance(item, dict)]
+                llm_entities = [
+                    item
+                    for item in payload.get("entities", [])
+                    if isinstance(item, dict)
+                ]
+                llm_relations = [
+                    item
+                    for item in payload.get("relations", [])
+                    if isinstance(item, dict)
+                ]
         except Exception:
             llm_entities = []
             llm_relations = []
 
     entities = _normalize_entities(llm_entities, kg_config=kg_config)
-    relations = _normalize_relations(llm_relations, entities=entities, kg_config=kg_config)
+    relations = _normalize_relations(
+        llm_relations, entities=entities, kg_config=kg_config
+    )
     if entities or relations:
         return {"entities": entities, "relations": relations}
     if not kg_config.fallback_to_rules:
@@ -211,14 +241,16 @@ def extract_chunk_knowledge(
     fallback["entities"] = [
         {
             **item,
-            "description": item["description"] or f"Derived heuristically from {metadata.get('title', 'document')}.",
+            "description": item["description"]
+            or f"Derived heuristically from {metadata.get('title', 'document')}.",
         }
         for item in fallback["entities"]
     ]
     fallback["relations"] = [
         {
             **item,
-            "description": item["description"] or "Derived heuristically from shared chunk context.",
+            "description": item["description"]
+            or "Derived heuristically from shared chunk context.",
         }
         for item in fallback["relations"]
     ]
@@ -228,5 +260,7 @@ def extract_chunk_knowledge(
 def summarize_entity_descriptions(values: list[str]) -> str:
     """Join short entity descriptions into one compact summary."""
 
-    parts = dedupe_strings([_clean_value(value) for value in values if _clean_value(value)])
+    parts = dedupe_strings(
+        [_clean_value(value) for value in values if _clean_value(value)]
+    )
     return " ".join(parts[:3])[:280]

@@ -9,7 +9,9 @@ from typing import Any
 
 _HEADING_PATTERN = re.compile(r"^#{1,6}\s+(.+)$", re.MULTILINE)
 _CODE_PATTERN = re.compile(r"`([^`]{2,64})`")
-_ENTITY_PATTERN = re.compile(r"\b[A-Z][A-Za-z0-9_./-]{2,}\b|\b[a-z0-9_]+(?:_[a-z0-9_]+)+\b")
+_ENTITY_PATTERN = re.compile(
+    r"\b[A-Z][A-Za-z0-9_./-]{2,}\b|\b[a-z0-9_]+(?:_[a-z0-9_]+)+\b"
+)
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
 
 

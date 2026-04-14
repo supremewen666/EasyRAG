@@ -4,8 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from easyrag.rag.evaluation.grounding import answer_abstained, answer_has_citations, sentence_support_ratio
-from easyrag.rag.evaluation.metrics import hit_rate_at_k, mrr_at_k, precision_at_k, recall_at_k
+from easyrag.rag.evaluation.grounding import (
+    answer_abstained,
+    answer_has_citations,
+    sentence_support_ratio,
+)
+from easyrag.rag.evaluation.metrics import (
+    hit_rate_at_k,
+    mrr_at_k,
+    precision_at_k,
+    recall_at_k,
+)
 from easyrag.rag.types import AnswerParam, EvalCase, QueryParam
 
 if TYPE_CHECKING:
@@ -22,7 +31,11 @@ def _match_relevance(
     if expected_document_ids and document_id in expected_document_ids:
         return True
     lowered_snippet = snippet.lower()
-    return any(expected.lower() in lowered_snippet for expected in expected_snippets if expected.strip())
+    return any(
+        expected.lower() in lowered_snippet
+        for expected in expected_snippets
+        if expected.strip()
+    )
 
 
 def _aggregate(values: list[float]) -> float:
@@ -67,7 +80,9 @@ async def evaluate_retrieval(
                 "question": case.question,
                 "expected_document_ids": list(case.expected_document_ids),
                 "expected_snippets": list(case.expected_snippets),
-                "retrieved_document_ids": [str(chunk.metadata.get("doc_id", "")) for chunk in result.chunks],
+                "retrieved_document_ids": [
+                    str(chunk.metadata.get("doc_id", "")) for chunk in result.chunks
+                ],
                 "retrieved_citations": list(result.citations),
                 "metrics": {
                     "hit_rate": hit_rate,
@@ -111,7 +126,10 @@ async def evaluate_answers(
         result = await rag.aanswer(case.question, query_param, answer_param)
         answer = result.answer
         has_citations = answer_has_citations(answer)
-        support_ratio = sentence_support_ratio(answer, [citation.get("snippet", "") for citation in result.selected_citations])
+        support_ratio = sentence_support_ratio(
+            answer,
+            [citation.get("snippet", "") for citation in result.selected_citations],
+        )
         abstained = answer_abstained(answer)
         abstain_correct = abstained == case.expected_to_abstain
         citation_presence_scores.append(1.0 if has_citations else 0.0)

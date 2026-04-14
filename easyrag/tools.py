@@ -32,7 +32,9 @@ def create_search_docs_tool(
 ):
     """Create a tool bound to a lazily provided EasyRAG instance."""
 
-    @tool(description="Search indexed repository knowledge chunks and return grounded citations.")
+    @tool(
+        description="Search indexed repository knowledge chunks and return grounded citations."
+    )
     def search_repo_knowledge(query: str) -> str:
         rag = rag_getter()
         result = _run_async(
@@ -84,7 +86,9 @@ def get_default_rag_tool():
     rag = EasyRAG(working_dir=get_rag_working_dir(), workspace=get_rag_workspace())
     _run_async(rag.initialize_storages())
     mode = "mix" if rag.can_rerank() else "hybrid"
-    return create_search_docs_tool(lambda: rag, default_mode=mode, rewrite_enabled=True, mqe_enabled=True)
+    return create_search_docs_tool(
+        lambda: rag, default_mode=mode, rewrite_enabled=True, mqe_enabled=True
+    )
 
 
 __all__ = ["create_search_docs_tool", "get_default_rag_tool", "search_docs_tool"]

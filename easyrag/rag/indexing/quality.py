@@ -30,25 +30,41 @@ def _collect_quality_flags(
         flags.append("duplicate_doc_id_in_batch")
     if normalized_text and content_counts[normalized_text] > 1:
         flags.append("duplicate_content_in_batch")
-    if str(metadata.get("source_type", "")) == "pdf" and metadata.get("has_visual_content") and normalized_text.lower().startswith(_SCANNED_PDF_PREFIX):
+    if (
+        str(metadata.get("source_type", "")) == "pdf"
+        and metadata.get("has_visual_content")
+        and normalized_text.lower().startswith(_SCANNED_PDF_PREFIX)
+    ):
         flags.append("pdf_visual_only")
     if not str(metadata.get("path", "")).strip():
         flags.append("missing_path")
     return flags
 
 
-def annotate_document_quality(documents: list[Document]) -> tuple[list[Document], dict[str, Any]]:
+def annotate_document_quality(
+    documents: list[Document],
+) -> tuple[list[Document], dict[str, Any]]:
     """Annotate documents with quality flags and skip empty normalized content."""
 
-    doc_id_counts = Counter(str(document.metadata.get("doc_id", "")).strip() for document in documents if str(document.metadata.get("doc_id", "")).strip())
-    content_counts = Counter(normalize_document_text(document.page_content) for document in documents if normalize_document_text(document.page_content))
+    doc_id_counts = Counter(
+        str(document.metadata.get("doc_id", "")).strip()
+        for document in documents
+        if str(document.metadata.get("doc_id", "")).strip()
+    )
+    content_counts = Counter(
+        normalize_document_text(document.page_content)
+        for document in documents
+        if normalize_document_text(document.page_content)
+    )
 
     annotated: list[Document] = []
     quality_issue_counts: Counter[str] = Counter()
     skipped_documents = 0
     for document in documents:
         normalized_text = normalize_document_text(document.page_content)
-        flags = _collect_quality_flags(document, doc_id_counts=doc_id_counts, content_counts=content_counts)
+        flags = _collect_quality_flags(
+            document, doc_id_counts=doc_id_counts, content_counts=content_counts
+        )
         quality_issue_counts.update(flags)
         metadata = dict(document.metadata)
         metadata["quality_flags"] = flags

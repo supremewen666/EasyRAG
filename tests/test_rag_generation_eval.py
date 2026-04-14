@@ -68,7 +68,12 @@ class GenerationPipelineTestCase(unittest.TestCase):
                 answer = _run(
                     rag.aanswer(
                         "How does EasyRAG keep answers grounded?",
-                        QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False, chunk_top_k=3),
+                        QueryParam(
+                            mode="naive",
+                            rewrite_enabled=False,
+                            mqe_enabled=False,
+                            chunk_top_k=3,
+                        ),
                         AnswerParam(max_citations=2, max_context_chars=140),
                     )
                 )
@@ -80,7 +85,9 @@ class GenerationPipelineTestCase(unittest.TestCase):
         self.assertIn("[1]", answer.answer)
         self.assertTrue(answer.context_block)
         self.assertTrue(answer.metadata["fallback_used"])
-        self.assertEqual(answer.metadata["selected_citation_count"], len(answer.selected_citations))
+        self.assertEqual(
+            answer.metadata["selected_citation_count"], len(answer.selected_citations)
+        )
 
     def test_aanswer_abstains_when_no_evidence_is_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -102,7 +109,9 @@ class GenerationPipelineTestCase(unittest.TestCase):
                 answer = _run(
                     rag.aanswer(
                         "What is the company holiday calendar?",
-                        QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False),
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
                         AnswerParam(),
                     )
                 )
@@ -138,7 +147,9 @@ class GenerationPipelineTestCase(unittest.TestCase):
                 answer = _run(
                     rag.aanswer(
                         "How does EasyRAG use rewrite?",
-                        QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False),
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
                         AnswerParam(),
                     )
                 )
@@ -173,7 +184,12 @@ class RetrievalFilterAndQualityTestCase(unittest.TestCase):
                 min_score_result = _run(
                     rag.aquery(
                         "retrieval retrieval",
-                        QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False, min_score=130.0),
+                        QueryParam(
+                            mode="naive",
+                            rewrite_enabled=False,
+                            mqe_enabled=False,
+                            min_score=130.0,
+                        ),
                     )
                 )
                 metadata_result = _run(
@@ -190,12 +206,21 @@ class RetrievalFilterAndQualityTestCase(unittest.TestCase):
             finally:
                 _run(rag.finalize_storages())
 
-        self.assertEqual([citation["location"] for citation in min_score_result.citations], ["docs/architecture.md"])
-        self.assertEqual([citation["location"] for citation in metadata_result.citations], ["docs/guide.md"])
+        self.assertEqual(
+            [citation["location"] for citation in min_score_result.citations],
+            ["docs/architecture.md"],
+        )
+        self.assertEqual(
+            [citation["location"] for citation in metadata_result.citations],
+            ["docs/guide.md"],
+        )
         self.assertIn("candidate_counts", metadata_result.metadata)
         self.assertIn("stage_timings_ms", metadata_result.metadata)
         self.assertIn("fallback_used", metadata_result.metadata)
-        self.assertEqual(metadata_result.metadata["filters_applied"]["metadata_filters"], {"doc_id": "doc::guide"})
+        self.assertEqual(
+            metadata_result.metadata["filters_applied"]["metadata_filters"],
+            {"doc_id": "doc::guide"},
+        )
 
     def test_quality_flags_and_skipped_documents_are_reported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -223,7 +248,9 @@ class RetrievalFilterAndQualityTestCase(unittest.TestCase):
         self.assertEqual(stats["quality_issue_counts"]["empty_after_normalization"], 1)
         self.assertEqual(stats["quality_issue_counts"]["duplicate_content_in_batch"], 2)
         self.assertIn("very_short", first_status["metadata"]["quality_flags"])
-        self.assertIn("duplicate_content_in_batch", first_status["metadata"]["quality_flags"])
+        self.assertIn(
+            "duplicate_content_in_batch", first_status["metadata"]["quality_flags"]
+        )
 
 
 class EvaluationRunnerTestCase(unittest.TestCase):
@@ -247,8 +274,15 @@ class EvaluationRunnerTestCase(unittest.TestCase):
                 report = _run(
                     evaluate_retrieval(
                         rag,
-                        [EvalCase(question="What uses query rewrite?", expected_document_ids=("doc::architecture",))],
-                        QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False),
+                        [
+                            EvalCase(
+                                question="What uses query rewrite?",
+                                expected_document_ids=("doc::architecture",),
+                            )
+                        ],
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
                     )
                 )
             finally:
@@ -280,10 +314,18 @@ class EvaluationRunnerTestCase(unittest.TestCase):
                     evaluate_answers(
                         rag,
                         [
-                            EvalCase(question="How does EasyRAG use query rewrite?", expected_to_abstain=False),
-                            EvalCase(question="When is the company retreat?", expected_to_abstain=True),
+                            EvalCase(
+                                question="How does EasyRAG use query rewrite?",
+                                expected_to_abstain=False,
+                            ),
+                            EvalCase(
+                                question="When is the company retreat?",
+                                expected_to_abstain=True,
+                            ),
                         ],
-                        QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False),
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
                         AnswerParam(),
                     )
                 )

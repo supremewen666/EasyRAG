@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 def _build_embedding_input(text: str, metadata: dict[str, Any]) -> str | dict[str, Any]:
     """Build embedding input that can preserve image assets for VL models."""
 
-    image_paths = [str(path) for path in metadata.get("image_paths", []) if str(path).strip()]
+    image_paths = [
+        str(path) for path in metadata.get("image_paths", []) if str(path).strip()
+    ]
     if not image_paths:
         return text
     return {
@@ -91,12 +93,23 @@ def build_insert_payloads(
                 "title": f"{title} summary",
                 "path": path,
                 "text": summary_text,
-                "metadata": {"source_type": "summary", "doc_id": doc_id, "path": path, "title": title},
+                "metadata": {
+                    "source_type": "summary",
+                    "doc_id": doc_id,
+                    "path": path,
+                    "title": title,
+                },
             }
         )
         payloads["graph_nodes"].extend(
             [
-                {"id": doc_id, "kind": "document", "label": title, "path": path, "doc_id": doc_id},
+                {
+                    "id": doc_id,
+                    "kind": "document",
+                    "label": title,
+                    "path": path,
+                    "doc_id": doc_id,
+                },
                 {
                     "id": summary_id,
                     "kind": "summary",
@@ -122,7 +135,12 @@ def build_insert_payloads(
             {
                 "id": summary_id,
                 "text": summary_text,
-                "metadata": {"doc_id": doc_id, "title": title, "path": path, "kind": "summary"},
+                "metadata": {
+                    "doc_id": doc_id,
+                    "title": title,
+                    "path": path,
+                    "kind": "summary",
+                },
             }
         )
 
@@ -130,7 +148,9 @@ def build_insert_payloads(
         for chunk in chunks_by_doc.get(doc_id, []):
             chunk_id = str(chunk.metadata["chunk_uid"])
             strategy = str(chunk.metadata.get("chunk_strategy", "unknown"))
-            payloads["chunk_strategy_counts"][strategy] = payloads["chunk_strategy_counts"].get(strategy, 0) + 1
+            payloads["chunk_strategy_counts"][strategy] = (
+                payloads["chunk_strategy_counts"].get(strategy, 0) + 1
+            )
             chunk_count += 1
             chunk_record = {
                 "id": chunk_id,
@@ -167,7 +187,9 @@ def build_insert_payloads(
                 {
                     "id": chunk_id,
                     "text": chunk.page_content,
-                    "embedding_input": _build_embedding_input(chunk.page_content, dict(chunk.metadata)),
+                    "embedding_input": _build_embedding_input(
+                        chunk.page_content, dict(chunk.metadata)
+                    ),
                     "metadata": {
                         "doc_id": doc_id,
                         "title": title,
@@ -175,7 +197,9 @@ def build_insert_payloads(
                         "kind": "chunk",
                         "chunk_strategy": strategy,
                         "page_number": chunk.metadata.get("page_number"),
-                        "image_paths": list(chunk.metadata.get("image_paths", []) or []),
+                        "image_paths": list(
+                            chunk.metadata.get("image_paths", []) or []
+                        ),
                     },
                 }
             )
@@ -204,11 +228,16 @@ def build_insert_payloads(
                         "owners": {},
                     },
                 )
-                entity_node["owners"].setdefault(doc_id, {"count": 0, "types": [], "descriptions": []})
+                entity_node["owners"].setdefault(
+                    doc_id, {"count": 0, "types": [], "descriptions": []}
+                )
                 owner = entity_node["owners"][doc_id]
                 owner["count"] = int(owner.get("count", 0)) + 1
                 owner["types"] = sorted(
-                    set(list(owner.get("types", [])) + [str(entity.get("type", "")).strip().lower()])
+                    set(
+                        list(owner.get("types", []))
+                        + [str(entity.get("type", "")).strip().lower()]
+                    )
                     - {""}
                 )
                 description = str(entity.get("description", "")).strip()
@@ -240,11 +269,17 @@ def build_insert_payloads(
                 )
 
             for relation in knowledge["relations"]:
-                source_id = chunk_entity_ids.get(str(relation.get("source", "")).strip().lower())
-                target_id = chunk_entity_ids.get(str(relation.get("target", "")).strip().lower())
+                source_id = chunk_entity_ids.get(
+                    str(relation.get("source", "")).strip().lower()
+                )
+                target_id = chunk_entity_ids.get(
+                    str(relation.get("target", "")).strip().lower()
+                )
                 if not source_id or not target_id or source_id == target_id:
                     continue
-                relation_name = str(relation.get("relation", "related_to")).strip() or "related_to"
+                relation_name = (
+                    str(relation.get("relation", "related_to")).strip() or "related_to"
+                )
                 relation_description = str(relation.get("description", "")).strip()
                 relation_id = f"relation::{slugify(f'{chunk_id}::{source_id}::{relation_name}::{target_id}')}"
                 payloads["relation_records"].append(
@@ -274,8 +309,12 @@ def build_insert_payloads(
                 "metadata": {
                     "path": path,
                     "chunk_count": chunk_count,
-                    "quality_flags": list(document.metadata.get("quality_flags", []) or []),
-                    "quality_issue_count": int(document.metadata.get("quality_issue_count", 0)),
+                    "quality_flags": list(
+                        document.metadata.get("quality_flags", []) or []
+                    ),
+                    "quality_issue_count": int(
+                        document.metadata.get("quality_issue_count", 0)
+                    ),
                 },
             }
         )
@@ -309,7 +348,9 @@ async def ingest_documents(rag: "EasyRAG", documents: list[Document]) -> dict[st
             "relations": 0,
             "pdf_documents": 0,
             "skipped_documents": int(quality_report.get("skipped_documents", 0)),
-            "quality_issue_counts": dict(quality_report.get("quality_issue_counts", {})),
+            "quality_issue_counts": dict(
+                quality_report.get("quality_issue_counts", {})
+            ),
         }
 
     payloads = build_insert_payloads(rag, annotated_documents)
@@ -324,7 +365,9 @@ async def ingest_documents(rag: "EasyRAG", documents: list[Document]) -> dict[st
     entity_vector_stats = await sync_entity_vectors(rag, payloads["entity_ids"])
     relation_vector_stats = await sync_relation_vectors(rag, payloads["relation_ids"])
     for status in payloads["statuses"]:
-        await rag.doc_status_storage.mark_status(status["document_id"], status["status"], metadata=status["metadata"])
+        await rag.doc_status_storage.mark_status(
+            status["document_id"], status["status"], metadata=status["metadata"]
+        )
     return {
         "documents": len(payloads["documents"]),
         "chunks": len(payloads["chunks"]),

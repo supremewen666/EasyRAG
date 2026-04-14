@@ -11,13 +11,17 @@ from easyrag.config.runtime import get_data_dir
 def get_rag_index_path() -> Path:
     """Return the on-disk location for the lightweight document index."""
 
-    return Path(os.getenv("EASYRAG_INDEX_PATH", get_data_dir() / "rag_index.json")).resolve()
+    return Path(
+        os.getenv("EASYRAG_INDEX_PATH", get_data_dir() / "rag_index.json")
+    ).resolve()
 
 
 def get_rag_working_dir() -> Path:
     """Return the default EasyRAG-style storage root directory."""
 
-    return Path(os.getenv("EASYRAG_WORKING_DIR", get_data_dir() / "rag_storage")).resolve()
+    return Path(
+        os.getenv("EASYRAG_WORKING_DIR", get_data_dir() / "rag_storage")
+    ).resolve()
 
 
 def get_rag_workspace() -> str:

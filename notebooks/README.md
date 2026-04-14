@@ -16,7 +16,7 @@ Notes:
 
 - `01-rag-basics` is docs-only, so there is no notebook directory for it
 - `07_optimization` is also docs-only for now
-- The directory structure and naming are stable, but many notebooks are still scaffolds
+- The directory structure and naming are stable, and the notebooks now follow a more consistent teaching template with code anchors, stage explanations, and debugging cues
 - Evaluation is part of the main learning path now, not just an appendix
 
 ## 00 Overview
@@ -28,30 +28,30 @@ Notes:
 
 - [02_01_repo_loading_basics.ipynb](02_data_loading/02_01_repo_loading_basics.ipynb): repo loading, canonical `Document`, chunk preview
 - [02_02_manual_document_preparation.ipynb](02_data_loading/02_02_manual_document_preparation.ipynb): manual documents and explicit metadata
-- [02_03_pdf_and_multimodal_loading.ipynb](02_data_loading/02_03_pdf_and_multimodal_loading.ipynb): scaffold for PDF and multimodal inputs
+- [02_03_pdf_and_multimodal_loading.ipynb](02_data_loading/02_03_pdf_and_multimodal_loading.ipynb): PDF and multimodal loading walkthrough
 - [02_04_normalization_and_cleaning.ipynb](02_data_loading/02_04_normalization_and_cleaning.ipynb): normalization and cleaning
 - [02_05_document_quality_and_edge_cases.ipynb](02_data_loading/02_05_document_quality_and_edge_cases.ipynb): document quality and edge cases
 
 ## 03 Indexing
 
-- [03_01_chunking_principles.ipynb](03_indexing/03_01_chunking_principles.ipynb): scaffold for chunking basics
+- [03_01_chunking_principles.ipynb](03_indexing/03_01_chunking_principles.ipynb): chunking basics and strategy comparison
 - [03_02_chunking_quality_analysis.ipynb](03_indexing/03_02_chunking_quality_analysis.ipynb): chunking comparison experiments
-- [03_03_embeddings_basics.ipynb](03_indexing/03_03_embeddings_basics.ipynb): scaffold for embedding basics
+- [03_03_embeddings_basics.ipynb](03_indexing/03_03_embeddings_basics.ipynb): embedding basics and similarity intuition
 - [03_04_normalization_before_embedding.ipynb](03_indexing/03_04_normalization_before_embedding.ipynb): normalization before embedding
 - [03_05_embedding_inputs_and_provider_behavior.ipynb](03_indexing/03_05_embedding_inputs_and_provider_behavior.ipynb): provider behavior and input boundaries
-- [03_06_vector_index_basics.ipynb](03_indexing/03_06_vector_index_basics.ipynb): scaffold for vector index basics
+- [03_06_vector_index_basics.ipynb](03_indexing/03_06_vector_index_basics.ipynb): vector index basics and backend behavior
 - [03_07_build_index_pipeline.ipynb](03_indexing/03_07_build_index_pipeline.ipynb): workspace build, artifact inspection, query verification
-- [03_08_storage_and_workspace_artifacts.ipynb](03_indexing/03_08_storage_and_workspace_artifacts.ipynb): scaffold for workspace artifacts
+- [03_08_storage_and_workspace_artifacts.ipynb](03_indexing/03_08_storage_and_workspace_artifacts.ipynb): workspace artifacts and storage inspection
 
 ## 04 Retrieval
 
 - [04_01_query_normalization_and_preprocessing.ipynb](04_retrieval/04_01_query_normalization_and_preprocessing.ipynb): query normalization and preprocessing
-- [04_02_query_rewrite_and_multi_query.ipynb](04_retrieval/04_02_query_rewrite_and_multi_query.ipynb): scaffold for rewriting and multi-query retrieval
-- [04_03_naive_retrieval_basics.ipynb](04_retrieval/04_03_naive_retrieval_basics.ipynb): scaffold for naive retrieval
+- [04_02_query_rewrite_and_multi_query.ipynb](04_retrieval/04_02_query_rewrite_and_multi_query.ipynb): rewriting and multi-query retrieval
+- [04_03_naive_retrieval_basics.ipynb](04_retrieval/04_03_naive_retrieval_basics.ipynb): naive retrieval baseline
 - [04_04_hybrid_metadata_filter_and_modes.ipynb](04_retrieval/04_04_hybrid_metadata_filter_and_modes.ipynb): retrieval modes, hybrid retrieval, metadata filtering
 - [04_05_fusion_rerank_and_topk.ipynb](04_retrieval/04_05_fusion_rerank_and_topk.ipynb): fusion, reranking, top-k
 - [04_06_hydration_and_citations.ipynb](04_retrieval/04_06_hydration_and_citations.ipynb): hydration and citations
-- [04_07_retrieval_failure_cases_and_debugging.ipynb](04_retrieval/04_07_retrieval_failure_cases_and_debugging.ipynb): scaffold for retrieval failure cases
+- [04_07_retrieval_failure_cases_and_debugging.ipynb](04_retrieval/04_07_retrieval_failure_cases_and_debugging.ipynb): retrieval failure cases and debugging
 
 ## 05 Generation
 

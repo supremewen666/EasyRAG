@@ -8,7 +8,12 @@ import re
 from pathlib import Path
 from typing import Sequence
 
-from easyrag.config import get_rag_index_path, get_rag_working_dir, get_rag_workspace, get_repo_root
+from easyrag.config import (
+    get_rag_index_path,
+    get_rag_working_dir,
+    get_rag_workspace,
+    get_repo_root,
+)
 from easyrag.rag.indexing.chunking import ChunkingConfig, chunk_documents
 from easyrag.rag.indexing.loaders import load_repo_documents
 from easyrag.support.async_utils import run_sync
@@ -54,7 +59,9 @@ def write_legacy_snapshot(documents: Sequence[Document]) -> None:
     ]
     index_path = get_rag_index_path()
     index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    index_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
 
 async def _build_workspace(
@@ -75,11 +82,20 @@ async def _build_workspace(
         selected_doc_ids = list(
             dict.fromkeys(
                 target_doc_ids
-                or [str(document.metadata.get("doc_id", "")).strip() for document in documents if str(document.metadata.get("doc_id", "")).strip()]
+                or [
+                    str(document.metadata.get("doc_id", "")).strip()
+                    for document in documents
+                    if str(document.metadata.get("doc_id", "")).strip()
+                ]
             )
         )
         selected_documents = (
-            [document for document in documents if str(document.metadata.get("doc_id", "")).strip() in set(selected_doc_ids)]
+            [
+                document
+                for document in documents
+                if str(document.metadata.get("doc_id", "")).strip()
+                in set(selected_doc_ids)
+            ]
             if target_doc_ids
             else documents
         )
@@ -89,11 +105,23 @@ async def _build_workspace(
                 for status in await rag.doc_status_storage.list_statuses()
                 if str(status.get("document_id", "")).strip()
             ]
-            stale_doc_ids = sorted(set(existing_doc_ids) - {str(document.metadata.get("doc_id", "")).strip() for document in documents})
+            stale_doc_ids = sorted(
+                set(existing_doc_ids)
+                - {
+                    str(document.metadata.get("doc_id", "")).strip()
+                    for document in documents
+                }
+            )
             if stale_doc_ids:
                 await rag.adelete_documents(stale_doc_ids)
         elif selected_doc_ids:
-            missing_doc_ids = sorted(set(selected_doc_ids) - {str(document.metadata.get("doc_id", "")).strip() for document in selected_documents})
+            missing_doc_ids = sorted(
+                set(selected_doc_ids)
+                - {
+                    str(document.metadata.get("doc_id", "")).strip()
+                    for document in selected_documents
+                }
+            )
             if missing_doc_ids:
                 await rag.adelete_documents(missing_doc_ids)
         if selected_documents:
@@ -119,7 +147,11 @@ def rebuild_document_index(
 
     root = Path(repo_root).resolve() if repo_root is not None else get_repo_root()
     documents = load_repo_documents(root)
-    normalized_doc_ids = list(dict.fromkeys(str(doc_id).strip() for doc_id in (doc_ids or []) if str(doc_id).strip()))
+    normalized_doc_ids = list(
+        dict.fromkeys(
+            str(doc_id).strip() for doc_id in (doc_ids or []) if str(doc_id).strip()
+        )
+    )
     _run_async(
         _build_workspace(
             documents,

@@ -16,7 +16,13 @@ import numpy as np
 
 from easyrag.support.optional_deps import Document
 from easyrag.rag import EasyRAG, KGExtractionConfig, QueryParam
-from easyrag.rag.indexing import ChunkingConfig, build_vector_index, chunk_documents, load_repo_documents, rebuild_document_index
+from easyrag.rag.indexing import (
+    ChunkingConfig,
+    build_vector_index,
+    chunk_documents,
+    load_repo_documents,
+    rebuild_document_index,
+)
 from easyrag.tools import create_search_docs_tool, search_docs_tool
 from scripts import build_index
 
@@ -63,7 +69,9 @@ def _stub_query_model(prompt: str, *, task: str, count: int = 1) -> str | list[s
     raise ValueError(task)
 
 
-def _stub_reranker(query: str, items: list[dict[str, object]]) -> list[dict[str, object]]:
+def _stub_reranker(
+    query: str, items: list[dict[str, object]]
+) -> list[dict[str, object]]:
     """Rerank candidates by keyword overlap with the query."""
 
     lowered_query = query.lower()
@@ -98,20 +106,63 @@ def _stub_kg_model_func(
         return entity_types[0] if entity_types else "concept"
 
     entities: list[dict[str, str]] = [
-        {"name": "EasyRAG", "type": pick("component", "module"), "description": "Repository knowledge system root."},
+        {
+            "name": "EasyRAG",
+            "type": pick("component", "module"),
+            "description": "Repository knowledge system root.",
+        },
     ]
     relations: list[dict[str, str]] = []
     lowered = text.lower()
 
     if "workflow" in lowered or "retrieval" in lowered:
-        entities.append({"name": "Retrieval Workflow", "type": pick("workflow", "concept"), "description": "Retrieval flow for repository answers."})
-        relations.append({"source": "EasyRAG", "target": "Retrieval Workflow", "relation": "orchestrates", "description": "EasyRAG orchestrates the retrieval workflow."})
+        entities.append(
+            {
+                "name": "Retrieval Workflow",
+                "type": pick("workflow", "concept"),
+                "description": "Retrieval flow for repository answers.",
+            }
+        )
+        relations.append(
+            {
+                "source": "EasyRAG",
+                "target": "Retrieval Workflow",
+                "relation": "orchestrates",
+                "description": "EasyRAG orchestrates the retrieval workflow.",
+            }
+        )
     if "rewrite" in lowered or "query" in lowered:
-        entities.append({"name": "Query Rewriter", "type": pick("tool", "component"), "description": "Query preprocessing helper."})
-        relations.append({"source": "EasyRAG", "target": "Query Rewriter", "relation": "uses", "description": "EasyRAG uses query rewriting during retrieval."})
+        entities.append(
+            {
+                "name": "Query Rewriter",
+                "type": pick("tool", "component"),
+                "description": "Query preprocessing helper.",
+            }
+        )
+        relations.append(
+            {
+                "source": "EasyRAG",
+                "target": "Query Rewriter",
+                "relation": "uses",
+                "description": "EasyRAG uses query rewriting during retrieval.",
+            }
+        )
     if "embedding" in lowered or "rerank" in lowered:
-        entities.append({"name": "Embedding Layer", "type": pick("dependency", "tool"), "description": "Dense retrieval support layer."})
-        relations.append({"source": "EasyRAG", "target": "Embedding Layer", "relation": "depends_on", "description": "EasyRAG depends on embeddings and reranking for dense retrieval."})
+        entities.append(
+            {
+                "name": "Embedding Layer",
+                "type": pick("dependency", "tool"),
+                "description": "Dense retrieval support layer.",
+            }
+        )
+        relations.append(
+            {
+                "source": "EasyRAG",
+                "target": "Embedding Layer",
+                "relation": "depends_on",
+                "description": "EasyRAG depends on embeddings and reranking for dense retrieval.",
+            }
+        )
 
     deduped_entities: list[dict[str, str]] = []
     seen_entities: set[str] = set()
@@ -125,7 +176,11 @@ def _stub_kg_model_func(
     deduped_relations: list[dict[str, str]] = []
     seen_relations: set[tuple[str, str, str]] = set()
     for relation in relations:
-        key = (relation["source"].lower(), relation["target"].lower(), relation["relation"])
+        key = (
+            relation["source"].lower(),
+            relation["target"].lower(),
+            relation["relation"],
+        )
         if key in seen_relations:
             continue
         seen_relations.add(key)
@@ -142,7 +197,12 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
 
     def test_requires_initialize_before_use(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            rag = EasyRAG(working_dir=tmp_dir, workspace="lifecycle", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="lifecycle",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
             with self.assertRaises(RuntimeError):
                 _run(rag.aquery("architecture", QueryParam(mode="naive")))
             with self.assertRaises(RuntimeError):
@@ -175,7 +235,11 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                     result = _run(
                         rag.aquery(
                             "How does query rewriting help repository guidance?",
-                            QueryParam(mode=mode, chunk_top_k=3, enable_rerank=(mode in {"hybrid", "mix"})),
+                            QueryParam(
+                                mode=mode,
+                                chunk_top_k=3,
+                                enable_rerank=(mode in {"hybrid", "mix"}),
+                            ),
                         )
                     )
                     self.assertTrue(result.citations, mode)
@@ -187,7 +251,9 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                 aggregate = _run(rag.get_stats())
                 self.assertGreaterEqual(aggregate["graph_nodes"], 4)
                 self.assertGreaterEqual(aggregate["entity_vectors"], 1)
-                self.assertIn(aggregate["vector_backend"], {"hnsw_embedding", "dense_embedding"})
+                self.assertIn(
+                    aggregate["vector_backend"], {"hnsw_embedding", "dense_embedding"}
+                )
             finally:
                 _run(rag.finalize_storages())
 
@@ -199,7 +265,9 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                 self._embeddings = np.zeros((0, dim), dtype=np.float32)
                 self._labels = np.zeros((0,), dtype=np.int32)
 
-            def init_index(self, max_elements: int, ef_construction: int, M: int) -> None:
+            def init_index(
+                self, max_elements: int, ef_construction: int, M: int
+            ) -> None:
                 del max_elements, ef_construction, M
 
             def add_items(self, embeddings: np.ndarray, labels: np.ndarray) -> None:
@@ -209,16 +277,25 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
             def set_ef(self, ef: int) -> None:
                 del ef
 
-            def knn_query(self, query_embedding: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
-                normalized_records = self._embeddings / np.maximum(np.linalg.norm(self._embeddings, axis=1, keepdims=True), 1e-12)
-                normalized_query = query_embedding / np.maximum(np.linalg.norm(query_embedding, axis=1, keepdims=True), 1e-12)
+            def knn_query(
+                self, query_embedding: np.ndarray, k: int
+            ) -> tuple[np.ndarray, np.ndarray]:
+                normalized_records = self._embeddings / np.maximum(
+                    np.linalg.norm(self._embeddings, axis=1, keepdims=True), 1e-12
+                )
+                normalized_query = query_embedding / np.maximum(
+                    np.linalg.norm(query_embedding, axis=1, keepdims=True), 1e-12
+                )
                 scores = normalized_records @ normalized_query[0]
                 ranked = np.argsort(scores)[::-1][:k]
                 distances = 1.0 - scores[ranked]
                 return self._labels[ranked][None, :], distances[None, :]
 
         fake_hnswlib = mock.Mock(Index=FakeHNSWIndex)
-        with tempfile.TemporaryDirectory() as tmp_dir, mock.patch("easyrag.rag.storage.local.hnswlib", fake_hnswlib):
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            mock.patch("easyrag.rag.storage.local.hnswlib", fake_hnswlib),
+        ):
             rag = EasyRAG(
                 working_dir=tmp_dir,
                 workspace="hnsw",
@@ -237,7 +314,14 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                         file_paths=["docs/architecture.md", "docs/setup.md"],
                     )
                 )
-                result = _run(rag.aquery("How does EasyRAG retrieval work?", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                result = _run(
+                    rag.aquery(
+                        "How does EasyRAG retrieval work?",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
                 aggregate = _run(rag.get_stats())
             finally:
                 _run(rag.finalize_storages())
@@ -249,52 +333,117 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
 
     def test_workspace_isolation_and_persistence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            rag_alpha = EasyRAG(working_dir=tmp_dir, workspace="alpha", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
-            rag_beta = EasyRAG(working_dir=tmp_dir, workspace="beta", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+            rag_alpha = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="alpha",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
+            rag_beta = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="beta",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
 
             _run(rag_alpha.initialize_storages())
             _run(rag_beta.initialize_storages())
             try:
-                _run(rag_alpha.ainsert("Alpha design uses embeddings.", ids=["doc::alpha"], file_paths=["docs/alpha.md"]))
-                _run(rag_beta.ainsert("Beta design uses retrieval workflows.", ids=["doc::beta"], file_paths=["docs/beta.md"]))
+                _run(
+                    rag_alpha.ainsert(
+                        "Alpha design uses embeddings.",
+                        ids=["doc::alpha"],
+                        file_paths=["docs/alpha.md"],
+                    )
+                )
+                _run(
+                    rag_beta.ainsert(
+                        "Beta design uses retrieval workflows.",
+                        ids=["doc::beta"],
+                        file_paths=["docs/beta.md"],
+                    )
+                )
             finally:
                 _run(rag_alpha.finalize_storages())
                 _run(rag_beta.finalize_storages())
 
-            reopened_alpha = EasyRAG(working_dir=tmp_dir, workspace="alpha", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
-            reopened_beta = EasyRAG(working_dir=tmp_dir, workspace="beta", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+            reopened_alpha = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="alpha",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
+            reopened_beta = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="beta",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
             _run(reopened_alpha.initialize_storages())
             _run(reopened_beta.initialize_storages())
             try:
-                alpha_result = _run(reopened_alpha.aquery("What uses embeddings?", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
-                beta_result = _run(reopened_beta.aquery("What uses retrieval workflows?", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                alpha_result = _run(
+                    reopened_alpha.aquery(
+                        "What uses embeddings?",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
+                beta_result = _run(
+                    reopened_beta.aquery(
+                        "What uses retrieval workflows?",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
                 self.assertTrue(alpha_result.citations)
                 self.assertTrue(beta_result.citations)
                 self.assertIn("embeddings", alpha_result.citations[0]["snippet"])
-                self.assertIn("retrieval workflows", beta_result.citations[0]["snippet"])
+                self.assertIn(
+                    "retrieval workflows", beta_result.citations[0]["snippet"]
+                )
             finally:
                 _run(reopened_alpha.finalize_storages())
                 _run(reopened_beta.finalize_storages())
 
-            self.assertTrue((Path(tmp_dir) / "alpha" / "kv" / "documents.json").exists())
+            self.assertTrue(
+                (Path(tmp_dir) / "alpha" / "kv" / "documents.json").exists()
+            )
             self.assertTrue((Path(tmp_dir) / "beta" / "vector" / "chunk.npy").exists())
 
     def test_dense_failure_falls_back_to_token_backend(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
+
             def failing_embedding(_: list[str]) -> list[list[float]]:
                 raise RuntimeError("embedding failure")
 
-            rag = EasyRAG(working_dir=tmp_dir, workspace="fallback", embedding_func=failing_embedding, query_model_func=_stub_query_model)
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="fallback",
+                embedding_func=failing_embedding,
+                query_model_func=_stub_query_model,
+            )
             _run(rag.initialize_storages())
             try:
                 _run(
                     rag.ainsert(
-                        ["# Architecture\nEasyRAG uses query rewriting for retrieval orchestration.\n"],
+                        [
+                            "# Architecture\nEasyRAG uses query rewriting for retrieval orchestration.\n"
+                        ],
                         ids=["doc::architecture"],
                         file_paths=["docs/architecture.md"],
                     )
                 )
-                result = _run(rag.aquery("retrieval orchestration", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                result = _run(
+                    rag.aquery(
+                        "retrieval orchestration",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
             finally:
                 _run(rag.finalize_storages())
 
@@ -314,13 +463,22 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
             try:
                 _run(
                     rag.ainsert(
-                        ["# Architecture\nEasyRAG uses query rewriting and retrieval workflows.\n"],
+                        [
+                            "# Architecture\nEasyRAG uses query rewriting and retrieval workflows.\n"
+                        ],
                         ids=["doc::architecture"],
                         file_paths=["docs/architecture.md"],
                     )
                 )
                 deleted = _run(rag.adelete_documents(["doc::architecture"]))
-                result = _run(rag.aquery("query rewriting", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                result = _run(
+                    rag.aquery(
+                        "query rewriting",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
                 aggregate = _run(rag.get_stats())
             finally:
                 _run(rag.finalize_storages())
@@ -346,21 +504,41 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
             try:
                 _run(
                     rag.ainsert(
-                        ["# Architecture\nEasyRAG uses query rewriting for retrieval.\n"],
+                        [
+                            "# Architecture\nEasyRAG uses query rewriting for retrieval.\n"
+                        ],
                         ids=["doc::architecture"],
                         file_paths=["docs/architecture.md"],
                     )
                 )
                 _run(
                     rag.ainsert(
-                        ["# Architecture\nEasyRAG uses embeddings for dense retrieval.\n"],
+                        [
+                            "# Architecture\nEasyRAG uses embeddings for dense retrieval.\n"
+                        ],
                         ids=["doc::architecture"],
                         file_paths=["docs/architecture.md"],
                     )
                 )
-                stored_chunk = _run(rag.kv_storage.get_chunk("doc::architecture::chunk::0"))
-                old_result = _run(rag.aquery("query rewriting", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
-                new_result = _run(rag.aquery("embeddings", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                stored_chunk = _run(
+                    rag.kv_storage.get_chunk("doc::architecture::chunk::0")
+                )
+                old_result = _run(
+                    rag.aquery(
+                        "query rewriting",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
+                new_result = _run(
+                    rag.aquery(
+                        "embeddings",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
             finally:
                 _run(rag.finalize_storages())
 
@@ -394,11 +572,20 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                 shared_before = _run(rag.graph_storage.get_node("entity::easyrag"))
                 _run(rag.adelete_documents(["doc::alpha"]))
                 shared_after = _run(rag.graph_storage.get_node("entity::easyrag"))
-                beta_result = _run(rag.aquery("embeddings", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                beta_result = _run(
+                    rag.aquery(
+                        "embeddings",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
             finally:
                 _run(rag.finalize_storages())
 
-            self.assertEqual(sorted(shared_before["doc_ids"]), ["doc::alpha", "doc::beta"])
+            self.assertEqual(
+                sorted(shared_before["doc_ids"]), ["doc::alpha", "doc::beta"]
+            )
             self.assertEqual(shared_after["doc_ids"], ["doc::beta"])
             self.assertTrue(beta_result.citations)
             self.assertIn("embeddings", beta_result.citations[0]["snippet"])
@@ -411,13 +598,17 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                 embedding_func=_stub_embedding,
                 query_model_func=_stub_query_model,
                 llm_model_func=_stub_kg_model_func,
-                kg_extraction_config=KGExtractionConfig(entity_types=("component", "workflow", "tool", "dependency")),
+                kg_extraction_config=KGExtractionConfig(
+                    entity_types=("component", "workflow", "tool", "dependency")
+                ),
             )
             _run(rag.initialize_storages())
             try:
                 _run(
                     rag.ainsert(
-                        ["# Architecture\nEasyRAG uses query rewriting, embeddings, and a retrieval workflow.\n"],
+                        [
+                            "# Architecture\nEasyRAG uses query rewriting, embeddings, and a retrieval workflow.\n"
+                        ],
                         ids=["doc::architecture"],
                         file_paths=["docs/architecture.md"],
                     )
@@ -432,10 +623,13 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
             self.assertGreaterEqual(aggregate["relation_vectors"], 1)
 
     def test_easyrag_uses_env_kg_entity_types_by_default(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir, mock.patch.dict(
-            os.environ,
-            {"EASYRAG_KG_ENTITY_TYPES": "workflow,tool"},
-            clear=False,
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            mock.patch.dict(
+                os.environ,
+                {"EASYRAG_KG_ENTITY_TYPES": "workflow,tool"},
+                clear=False,
+            ),
         ):
             rag = EasyRAG(
                 working_dir=tmp_dir,
@@ -448,16 +642,22 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
             try:
                 _run(
                     rag.ainsert(
-                        ["# Architecture\nEasyRAG uses query rewriting and a retrieval workflow.\n"],
+                        [
+                            "# Architecture\nEasyRAG uses query rewriting and a retrieval workflow.\n"
+                        ],
                         ids=["doc::architecture"],
                         file_paths=["docs/architecture.md"],
                     )
                 )
-                workflow_entity = _run(rag.graph_storage.get_node("entity::retrieval-workflow"))
+                workflow_entity = _run(
+                    rag.graph_storage.get_node("entity::retrieval-workflow")
+                )
             finally:
                 _run(rag.finalize_storages())
 
-            self.assertEqual(rag.kg_extraction_config.entity_types, ("workflow", "tool"))
+            self.assertEqual(
+                rag.kg_extraction_config.entity_types, ("workflow", "tool")
+            )
             self.assertEqual(workflow_entity["entity_types"], ["workflow"])
 
 
@@ -468,14 +668,31 @@ class ChunkingAndLoadingTestCase(unittest.TestCase):
         documents = [
             Document(
                 page_content="# Architecture\nIntro.\n## Retrieval\nSemantic chunks help retrieval.\n",
-                metadata={"doc_id": "doc::md", "path": "docs/architecture.md", "relative_path": "docs/architecture.md", "title": "architecture", "source_type": "doc"},
+                metadata={
+                    "doc_id": "doc::md",
+                    "path": "docs/architecture.md",
+                    "relative_path": "docs/architecture.md",
+                    "title": "architecture",
+                    "source_type": "doc",
+                },
             ),
             Document(
                 page_content="Sentence one about semantic retrieval. Sentence two about Qwen. Sentence three about overlap.",
-                metadata={"doc_id": "doc::txt", "path": "docs/notes.txt", "relative_path": "docs/notes.txt", "title": "notes", "source_type": "doc"},
+                metadata={
+                    "doc_id": "doc::txt",
+                    "path": "docs/notes.txt",
+                    "relative_path": "docs/notes.txt",
+                    "title": "notes",
+                    "source_type": "doc",
+                },
             ),
         ]
-        rag = EasyRAG(working_dir="/tmp", workspace="unused", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+        rag = EasyRAG(
+            working_dir="/tmp",
+            workspace="unused",
+            embedding_func=_stub_embedding,
+            query_model_func=_stub_query_model,
+        )
         chunks = chunk_documents(documents, config=ChunkingConfig(), rag=rag)
         strategies = {str(chunk.metadata.get("chunk_strategy")) for chunk in chunks}
 
@@ -488,20 +705,32 @@ class ChunkingAndLoadingTestCase(unittest.TestCase):
             root = Path(tmp_dir)
             docs_dir = root / "docs"
             docs_dir.mkdir()
-            (docs_dir / "design.md").write_text("# Design\nGraph retrieval.\n", encoding="utf-8")
+            (docs_dir / "design.md").write_text(
+                "# Design\nGraph retrieval.\n", encoding="utf-8"
+            )
             pdf_path = docs_dir / "manual.pdf"
             pdf_path.write_bytes(b"%PDF-1.4 fake")
 
             fake_pages = [
-                mock.Mock(extract_text=mock.Mock(return_value="Page one architecture notes")),
+                mock.Mock(
+                    extract_text=mock.Mock(return_value="Page one architecture notes")
+                ),
                 mock.Mock(extract_text=mock.Mock(return_value="")),
-                mock.Mock(extract_text=mock.Mock(return_value="Page three setup details")),
+                mock.Mock(
+                    extract_text=mock.Mock(return_value="Page three setup details")
+                ),
             ]
             fake_reader = mock.Mock(pages=fake_pages)
-            with mock.patch("easyrag.rag.indexing.loaders.PdfReader", return_value=fake_reader):
+            with mock.patch(
+                "easyrag.rag.indexing.loaders.PdfReader", return_value=fake_reader
+            ):
                 documents = load_repo_documents(root)
 
-            pdf_documents = [document for document in documents if document.metadata["source_type"] == "pdf"]
+            pdf_documents = [
+                document
+                for document in documents
+                if document.metadata["source_type"] == "pdf"
+            ]
             self.assertEqual(len(pdf_documents), 2)
             self.assertEqual(pdf_documents[0].metadata["page_number"], 1)
             self.assertEqual(pdf_documents[1].metadata["page_number"], 3)
@@ -519,7 +748,9 @@ class ChunkingAndLoadingTestCase(unittest.TestCase):
                 mock.Mock(extract_text=mock.Mock(return_value=""), images=[fake_image]),
             ]
             fake_reader = mock.Mock(pages=fake_pages)
-            with mock.patch("easyrag.rag.indexing.loaders.PdfReader", return_value=fake_reader):
+            with mock.patch(
+                "easyrag.rag.indexing.loaders.PdfReader", return_value=fake_reader
+            ):
                 documents = load_repo_documents(root)
 
             self.assertEqual(len(documents), 1)
@@ -551,7 +782,9 @@ class IndexingHelperTestCase(unittest.TestCase):
                 os.environ,
                 {
                     "EASYRAG_DATA_DIR": str(Path(tmp_dir) / ".easyrag"),
-                    "EASYRAG_INDEX_PATH": str(Path(tmp_dir) / ".easyrag" / "rag_index.json"),
+                    "EASYRAG_INDEX_PATH": str(
+                        Path(tmp_dir) / ".easyrag" / "rag_index.json"
+                    ),
                     "EASYRAG_WORKING_DIR": tmp_dir,
                     "EASYRAG_WORKSPACE": "compat",
                     "OPENAI_API_KEY": "",
@@ -570,10 +803,21 @@ class IndexingHelperTestCase(unittest.TestCase):
                     results = _run(
                         rag.aquery(
                             "How does workflow orchestration work?",
-                            QueryParam(mode="naive", top_k=3, chunk_top_k=3, rewrite_enabled=False, mqe_enabled=False),
+                            QueryParam(
+                                mode="naive",
+                                top_k=3,
+                                chunk_top_k=3,
+                                rewrite_enabled=False,
+                                mqe_enabled=False,
+                            ),
                         )
                     )
-                    tool = create_search_docs_tool(lambda: rag, default_mode="naive", rewrite_enabled=False, mqe_enabled=False)
+                    tool = create_search_docs_tool(
+                        lambda: rag,
+                        default_mode="naive",
+                        rewrite_enabled=False,
+                        mqe_enabled=False,
+                    )
                     tool_results = tool.invoke({"query": "What uses query rewriting?"})
                 finally:
                     _run(rag.finalize_storages())
@@ -599,7 +843,12 @@ class IndexingHelperTestCase(unittest.TestCase):
                         file_paths=["docs/architecture.md"],
                     )
                 )
-                tool = create_search_docs_tool(lambda: rag, default_mode="naive", rewrite_enabled=False, mqe_enabled=False)
+                tool = create_search_docs_tool(
+                    lambda: rag,
+                    default_mode="naive",
+                    rewrite_enabled=False,
+                    mqe_enabled=False,
+                )
 
                 async def invoke_tool() -> str:
                     return tool.invoke({"query": "What uses query rewriting?"})
@@ -620,11 +869,20 @@ class IndexingHelperTestCase(unittest.TestCase):
                 },
                 clear=False,
             ):
-                with mock.patch("easyrag.tools.EasyRAG.initialize_storages", new=mock.AsyncMock()):
-                    with mock.patch("easyrag.tools.EasyRAG.finalize_storages", new=mock.AsyncMock()):
-                        with mock.patch("easyrag.tools.EasyRAG.aquery", new=mock.AsyncMock(side_effect=RuntimeError("boom"))):
+                with mock.patch(
+                    "easyrag.tools.EasyRAG.initialize_storages", new=mock.AsyncMock()
+                ):
+                    with mock.patch(
+                        "easyrag.tools.EasyRAG.finalize_storages", new=mock.AsyncMock()
+                    ):
+                        with mock.patch(
+                            "easyrag.tools.EasyRAG.aquery",
+                            new=mock.AsyncMock(side_effect=RuntimeError("boom")),
+                        ):
                             with self.assertRaisesRegex(RuntimeError, "boom"):
-                                search_docs_tool.invoke({"query": "What uses query rewriting?"})
+                                search_docs_tool.invoke(
+                                    {"query": "What uses query rewriting?"}
+                                )
 
 
 class BuildIndexScriptTestCase(unittest.TestCase):
@@ -646,7 +904,9 @@ class BuildIndexScriptTestCase(unittest.TestCase):
                 {
                     "EASYRAG_REPO_ROOT": str(repo_root),
                     "EASYRAG_DATA_DIR": str(repo_root / ".easyrag"),
-                    "EASYRAG_INDEX_PATH": str(repo_root / ".easyrag" / "rag_index.json"),
+                    "EASYRAG_INDEX_PATH": str(
+                        repo_root / ".easyrag" / "rag_index.json"
+                    ),
                     "EASYRAG_WORKING_DIR": str(repo_root / ".easyrag" / "rag_storage"),
                     "EASYRAG_WORKSPACE": "demo",
                     "OPENAI_API_KEY": "",
@@ -660,7 +920,16 @@ class BuildIndexScriptTestCase(unittest.TestCase):
             self.assertIn("documents=1", output)
             self.assertIn("workspace=demo", output)
             self.assertIn("vector_backend=fallback_token", output)
-            self.assertTrue((repo_root / ".easyrag" / "rag_storage" / "demo" / "kv" / "documents.json").exists())
+            self.assertTrue(
+                (
+                    repo_root
+                    / ".easyrag"
+                    / "rag_storage"
+                    / "demo"
+                    / "kv"
+                    / "documents.json"
+                ).exists()
+            )
 
     def test_build_index_script_runs_inside_existing_event_loop(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -678,13 +947,16 @@ class BuildIndexScriptTestCase(unittest.TestCase):
                 {
                     "EASYRAG_REPO_ROOT": str(repo_root),
                     "EASYRAG_DATA_DIR": str(repo_root / ".easyrag"),
-                    "EASYRAG_INDEX_PATH": str(repo_root / ".easyrag" / "rag_index.json"),
+                    "EASYRAG_INDEX_PATH": str(
+                        repo_root / ".easyrag" / "rag_index.json"
+                    ),
                     "EASYRAG_WORKING_DIR": str(repo_root / ".easyrag" / "rag_storage"),
                     "EASYRAG_WORKSPACE": "loop",
                     "OPENAI_API_KEY": "",
                 },
                 clear=False,
             ):
+
                 async def run_script() -> None:
                     with contextlib.redirect_stdout(stdout):
                         build_index.main([])
@@ -720,7 +992,9 @@ class BuildIndexScriptTestCase(unittest.TestCase):
             ):
                 build_index.main([])
                 before_delete = json.loads(index_path.read_text(encoding="utf-8"))
-                build_index.main(["--action", "delete", "--doc-id", "doc::docs-architecture-md"])
+                build_index.main(
+                    ["--action", "delete", "--doc-id", "doc::docs-architecture-md"]
+                )
                 after_delete = json.loads(index_path.read_text(encoding="utf-8"))
 
             self.assertEqual(len(before_delete), 1)
@@ -733,15 +1007,21 @@ class BuildIndexScriptTestCase(unittest.TestCase):
             docs_dir.mkdir(parents=True)
             architecture_path = docs_dir / "architecture.md"
             setup_path = docs_dir / "setup.md"
-            architecture_path.write_text("# Architecture\nEasyRAG uses retrieval workflows.\n", encoding="utf-8")
-            setup_path.write_text("# Setup\nEasyRAG uses embeddings.\n", encoding="utf-8")
+            architecture_path.write_text(
+                "# Architecture\nEasyRAG uses retrieval workflows.\n", encoding="utf-8"
+            )
+            setup_path.write_text(
+                "# Setup\nEasyRAG uses embeddings.\n", encoding="utf-8"
+            )
 
             with mock.patch.dict(
                 os.environ,
                 {
                     "EASYRAG_REPO_ROOT": str(repo_root),
                     "EASYRAG_DATA_DIR": str(repo_root / ".easyrag"),
-                    "EASYRAG_INDEX_PATH": str(repo_root / ".easyrag" / "rag_index.json"),
+                    "EASYRAG_INDEX_PATH": str(
+                        repo_root / ".easyrag" / "rag_index.json"
+                    ),
                     "EASYRAG_WORKING_DIR": str(repo_root / ".easyrag" / "rag_storage"),
                     "EASYRAG_WORKSPACE": "sync",
                     "OPENAI_API_KEY": "",
@@ -767,8 +1047,17 @@ class BuildIndexScriptTestCase(unittest.TestCase):
                 _run(rag.initialize_storages())
                 try:
                     aggregate = _run(rag.get_stats())
-                    removed_status = _run(rag.doc_status_storage.get_status(removed_doc_id))
-                    removed_result = _run(rag.aquery("embeddings", QueryParam(mode="naive", rewrite_enabled=False, mqe_enabled=False)))
+                    removed_status = _run(
+                        rag.doc_status_storage.get_status(removed_doc_id)
+                    )
+                    removed_result = _run(
+                        rag.aquery(
+                            "embeddings",
+                            QueryParam(
+                                mode="naive", rewrite_enabled=False, mqe_enabled=False
+                            ),
+                        )
+                    )
                 finally:
                     _run(rag.finalize_storages())
 

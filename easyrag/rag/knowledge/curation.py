@@ -25,9 +25,17 @@ def build_entity_payload(
         "label": label,
         "entity_types": list(entity_types or []),
         "description": description,
-        "aliases": dedupe_strings([str(value).strip() for value in list(aliases or []) if str(value).strip()]),
+        "aliases": dedupe_strings(
+            [str(value).strip() for value in list(aliases or []) if str(value).strip()]
+        ),
         "metadata": dict(metadata or {}),
-        "provenance": dedupe_strings([str(value).strip() for value in list(provenance or []) if str(value).strip()]),
+        "provenance": dedupe_strings(
+            [
+                str(value).strip()
+                for value in list(provenance or [])
+                if str(value).strip()
+            ]
+        ),
     }
 
 
@@ -57,5 +65,11 @@ async def build_relation_payload(
         "description": description,
         "weight": float(weight),
         "metadata": dict(metadata or {}),
-        "provenance": dedupe_strings([str(value).strip() for value in list(provenance or []) if str(value).strip()]),
+        "provenance": dedupe_strings(
+            [
+                str(value).strip()
+                for value in list(provenance or [])
+                if str(value).strip()
+            ]
+        ),
     }

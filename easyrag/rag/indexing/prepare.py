@@ -28,9 +28,17 @@ def _prepare_documents(
         if not content:
             skipped_empty += 1
             continue
-        path = normalized_paths[index] if index < len(normalized_paths) else f"memory/doc_{index}.md"
+        path = (
+            normalized_paths[index]
+            if index < len(normalized_paths)
+            else f"memory/doc_{index}.md"
+        )
         title = path.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-        doc_id = normalized_ids[index] if index < len(normalized_ids) and normalized_ids[index].strip() else f"doc::{slugify(path)}"
+        doc_id = (
+            normalized_ids[index]
+            if index < len(normalized_ids) and normalized_ids[index].strip()
+            else f"doc::{slugify(path)}"
+        )
         documents.append(
             Document(
                 page_content=content,

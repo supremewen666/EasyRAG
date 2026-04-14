@@ -5,7 +5,9 @@ from __future__ import annotations
 from easyrag.rag.types import QueryParam
 
 
-def merge_ranked_records(rank_groups: list[tuple[float, list[dict[str, object]]]]) -> list[dict[str, object]]:
+def merge_ranked_records(
+    rank_groups: list[tuple[float, list[dict[str, object]]]],
+) -> list[dict[str, object]]:
     """Merge ranked record lists by accumulating weighted scores."""
 
     merged: dict[str, dict[str, object]] = {}
@@ -17,10 +19,14 @@ def merge_ranked_records(rank_groups: list[tuple[float, list[dict[str, object]]]
             candidate["score"] = float(candidate.get("score", 0.0)) + score * weight
             if "vector_backend" not in candidate and "vector_backend" in record:
                 candidate["vector_backend"] = record["vector_backend"]
-    return sorted(merged.values(), key=lambda item: float(item.get("score", 0.0)), reverse=True)
+    return sorted(
+        merged.values(), key=lambda item: float(item.get("score", 0.0)), reverse=True
+    )
 
 
-def rrf_fuse(record_groups: list[list[dict[str, object]]], *, k: int = 60) -> list[dict[str, object]]:
+def rrf_fuse(
+    record_groups: list[list[dict[str, object]]], *, k: int = 60
+) -> list[dict[str, object]]:
     """Fuse multiple ranked lists with reciprocal rank fusion."""
 
     merged: dict[str, dict[str, object]] = {}
@@ -31,16 +37,22 @@ def rrf_fuse(record_groups: list[list[dict[str, object]]], *, k: int = 60) -> li
             candidate["score"] = float(candidate.get("score", 0.0)) + 1.0 / (k + rank)
             if "vector_backend" not in candidate and "vector_backend" in record:
                 candidate["vector_backend"] = record["vector_backend"]
-    return sorted(merged.values(), key=lambda item: float(item.get("score", 0.0)), reverse=True)
+    return sorted(
+        merged.values(), key=lambda item: float(item.get("score", 0.0)), reverse=True
+    )
 
 
-def trim_records(records: list[dict[str, object]], limit: int) -> list[dict[str, object]]:
+def trim_records(
+    records: list[dict[str, object]], limit: int
+) -> list[dict[str, object]]:
     """Keep the leading ranked records."""
 
     return records[: max(limit, 0)]
 
 
-def combine_mode_results(param: QueryParam, *groups: tuple[float, list[dict[str, object]]]) -> list[dict[str, object]]:
+def combine_mode_results(
+    param: QueryParam, *groups: tuple[float, list[dict[str, object]]]
+) -> list[dict[str, object]]:
     """Combine mode-level result groups using the requested fusion strategy."""
 
     records = [group for _, group in groups]

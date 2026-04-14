@@ -36,10 +36,14 @@ def ensure_repo_root_on_path() -> Path:
             if str(root) not in sys.path:
                 sys.path.insert(0, str(root))
             return root
-    raise RuntimeError("Could not locate the EasyRAG repository root from the current working directory.")
+    raise RuntimeError(
+        "Could not locate the EasyRAG repository root from the current working directory."
+    )
 
 
-def stub_embedding(texts: list[str], *, keywords: list[str] | None = None) -> list[list[float]]:
+def stub_embedding(
+    texts: list[str], *, keywords: list[str] | None = None
+) -> list[list[float]]:
     active_keywords = keywords or NOTEBOOK_KEYWORDS
     vectors: list[list[float]] = []
     for text in texts:
@@ -59,7 +63,9 @@ def stub_query_model(prompt: str, *, task: str, count: int = 1) -> str | list[st
     raise ValueError(task)
 
 
-def stub_reranker(query: str, items: list[dict[str, object]]) -> list[dict[str, object]]:
+def stub_reranker(
+    query: str, items: list[dict[str, object]]
+) -> list[dict[str, object]]:
     lowered_query = query.lower()
     scored: list[dict[str, object]] = []
     for item in items:
@@ -81,12 +87,18 @@ def provider_ready() -> bool:
 
 
 def production_backends_ready() -> bool:
-    return bool(os.environ.get("EASYRAG_POSTGRES_DSN")) and bool(os.environ.get("EASYRAG_QDRANT_URL"))
+    return bool(os.environ.get("EASYRAG_POSTGRES_DSN")) and bool(
+        os.environ.get("EASYRAG_QDRANT_URL")
+    )
 
 
 def list_workspace_files(workspace_root: str | Path) -> list[str]:
     root = Path(workspace_root)
-    return [str(path.relative_to(root)) for path in sorted(root.rglob("*")) if path.is_file()]
+    return [
+        str(path.relative_to(root))
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    ]
 
 
 @contextmanager
@@ -125,7 +137,9 @@ def managed_demo_rag(
 
 def skip_message(kind: str) -> str:
     if kind == "provider":
-        return "Skipping provider-backed path because OPENAI-compatible config is not set."
+        return (
+            "Skipping provider-backed path because OPENAI-compatible config is not set."
+        )
     if kind == "production":
         return "Skipping production-backed path because PostgreSQL/Qdrant configuration is not set."
     return "Skipping optional path because configuration is not set."

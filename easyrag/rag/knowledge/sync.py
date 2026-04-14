@@ -63,11 +63,18 @@ def _build_relation_vector_payload(
 ) -> dict[str, Any]:
     """Convert one semantic relation record into a relation vector record."""
 
-    source_label = str(source_node.get("label", relation.get("source_entity_id", ""))).strip()
-    target_label = str(target_node.get("label", relation.get("target_entity_id", ""))).strip()
+    source_label = str(
+        source_node.get("label", relation.get("source_entity_id", ""))
+    ).strip()
+    target_label = str(
+        target_node.get("label", relation.get("target_entity_id", ""))
+    ).strip()
     relation_name = str(relation.get("relation", "related_to")).strip() or "related_to"
     description = str(relation.get("description", "")).strip()
-    text = description or f"{source_label} {relation_name.replace('_', ' ')} {target_label}"
+    text = (
+        description
+        or f"{source_label} {relation_name.replace('_', ' ')} {target_label}"
+    )
     metadata = dict(relation.get("metadata", {}))
     metadata.update(
         {
@@ -104,11 +111,17 @@ async def sync_relation_vectors(
         relation = await rag.graph_storage.get_relation(relation_id)
         if relation is None:
             continue
-        source_node = await rag.graph_storage.get_node(str(relation.get("source_entity_id", "")))
-        target_node = await rag.graph_storage.get_node(str(relation.get("target_entity_id", "")))
+        source_node = await rag.graph_storage.get_node(
+            str(relation.get("source_entity_id", ""))
+        )
+        target_node = await rag.graph_storage.get_node(
+            str(relation.get("target_entity_id", ""))
+        )
         if source_node is None or target_node is None:
             continue
-        payloads.append(_build_relation_vector_payload(relation, source_node, target_node))
+        payloads.append(
+            _build_relation_vector_payload(relation, source_node, target_node)
+        )
     if payloads:
         await rag.vector_storage.upsert("relation", payloads)
     return {"upserted": len(payloads), "deleted": deleted}

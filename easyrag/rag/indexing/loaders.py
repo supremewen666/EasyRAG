@@ -47,7 +47,9 @@ def is_indexable_document(path: Path, repo_root: Path) -> bool:
     }
 
 
-def _save_pdf_page_images(page: object, path: Path, root: Path, *, page_number: int) -> list[str]:
+def _save_pdf_page_images(
+    page: object, path: Path, root: Path, *, page_number: int
+) -> list[str]:
     """Persist embedded PDF page images for later multimodal retrieval."""
 
     raw_images = getattr(page, "images", None)
@@ -62,7 +64,10 @@ def _save_pdf_page_images(page: object, path: Path, root: Path, *, page_number: 
     output_dir.mkdir(parents=True, exist_ok=True)
     saved_paths: list[str] = []
     for index, image in enumerate(images, start=1):
-        image_name = Path(str(getattr(image, "name", f"image-{index}.png"))).name or f"image-{index}.png"
+        image_name = (
+            Path(str(getattr(image, "name", f"image-{index}.png"))).name
+            or f"image-{index}.png"
+        )
         suffix = Path(image_name).suffix or ".png"
         output_path = output_dir / f"image-{index}{suffix}"
 
@@ -136,11 +141,19 @@ def load_pdf_documents(path: Path, root: Path) -> list[Document]:
         if not text and not image_paths:
             continue
         if not text and image_paths:
-            text = normalize_document_text(f"Scanned PDF page {page_number} from {path.stem}.")
+            text = normalize_document_text(
+                f"Scanned PDF page {page_number} from {path.stem}."
+            )
         documents.append(
             Document(
                 page_content=text,
-                metadata=build_document_metadata(path, root, source_type="pdf", page_number=page_number, image_paths=image_paths),
+                metadata=build_document_metadata(
+                    path,
+                    root,
+                    source_type="pdf",
+                    page_number=page_number,
+                    image_paths=image_paths,
+                ),
             )
         )
     return documents
@@ -157,7 +170,9 @@ def load_repo_documents(repo_root: str | Path) -> list[Document]:
         if path.suffix.lower() in _PDF_SUFFIXES:
             documents.extend(load_pdf_documents(path, root))
             continue
-        text = normalize_document_text(path.read_text(encoding="utf-8", errors="ignore"))
+        text = normalize_document_text(
+            path.read_text(encoding="utf-8", errors="ignore")
+        )
         if not text:
             continue
         documents.append(

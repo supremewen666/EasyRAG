@@ -38,7 +38,13 @@ def _retryable_exception_types() -> tuple[type[BaseException], ...]:
 
     types: list[type[BaseException]] = [TimeoutError, ConnectionError, OSError]
     if httpx is not None:
-        for name in ("TimeoutException", "TransportError", "NetworkError", "ReadTimeout", "ConnectTimeout"):
+        for name in (
+            "TimeoutException",
+            "TransportError",
+            "NetworkError",
+            "ReadTimeout",
+            "ConnectTimeout",
+        ):
             value = getattr(httpx, name, None)
             if isinstance(value, type) and issubclass(value, BaseException):
                 types.append(value)
@@ -140,7 +146,9 @@ def _looks_like_dashscope_text_rerank_model(model_name: str) -> bool:
     """Return whether the model name is served by DashScope's rerank APIs."""
 
     normalized = model_name.strip().lower()
-    return normalized.startswith("qwen3-rerank") or normalized.startswith("gte-rerank-v2")
+    return normalized.startswith("qwen3-rerank") or normalized.startswith(
+        "gte-rerank-v2"
+    )
 
 
 def _path_to_data_url(path: str) -> str | None:
@@ -178,11 +186,15 @@ def _build_multimodal_content(item: Any) -> dict[str, str]:
 def _build_multimodal_rerank_document(item: dict[str, Any]) -> dict[str, str]:
     """Build one rerank document payload from hydrated retrieval data."""
 
-    metadata = item.get("metadata", {}) if isinstance(item.get("metadata"), dict) else {}
+    metadata = (
+        item.get("metadata", {}) if isinstance(item.get("metadata"), dict) else {}
+    )
     return _build_multimodal_content(
         {
             "text": str(item.get("text") or item.get("snippet") or ""),
-            "image_paths": metadata.get("image_paths", []) or item.get("image_paths", []) or [],
+            "image_paths": metadata.get("image_paths", [])
+            or item.get("image_paths", [])
+            or [],
         }
     )
 
@@ -202,7 +214,9 @@ def _get_dashscope_rerank_url(base_url: str | None, model_name: str) -> str:
         raise RuntimeError("No rerank base URL is configured.")
     origin = _get_origin(base_url)
     host = urlsplit(base_url).netloc.lower()
-    if host == "dashscope-intl.aliyuncs.com" and model_name.strip().lower().startswith("qwen3-rerank"):
+    if host == "dashscope-intl.aliyuncs.com" and model_name.strip().lower().startswith(
+        "qwen3-rerank"
+    ):
         return f"{origin}/compatible-api/v1/reranks"
     return f"{origin}/api/v1/services/rerank/text-rerank/text-rerank"
 
@@ -215,7 +229,9 @@ def _extract_text_from_chat_response(response: Any) -> str:
         content = getattr(message, "content", "")
         if isinstance(content, list):
             return "".join(
-                str(part.get("text", "")) if isinstance(part, dict) else str(getattr(part, "text", ""))
+                str(part.get("text", ""))
+                if isinstance(part, dict)
+                else str(getattr(part, "text", ""))
                 for part in content
             ).strip()
         return str(content or "").strip()
@@ -296,16 +312,23 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
     base_url = get_embedding_base_url()
     if _looks_like_vl_embedding_model(model_name):
         if not _is_dashscope_url(base_url):
-            raise RuntimeError("Qwen3-VL-Embedding requires a DashScope embedding base URL.")
+            raise RuntimeError(
+                "Qwen3-VL-Embedding requires a DashScope embedding base URL."
+            )
         client = _require_httpx()
         response = _call_with_retry(
             lambda: client.post(
                 _get_dashscope_multimodal_embedding_url(base_url),
                 json={
                     "model": model_name,
-                    "input": {"contents": [_build_multimodal_content(text) for text in texts]},
+                    "input": {
+                        "contents": [_build_multimodal_content(text) for text in texts]
+                    },
                 },
-                headers={"Authorization": f"Bearer {get_openai_api_key().strip()}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {get_openai_api_key().strip()}",
+                    "Content-Type": "application/json",
+                },
                 timeout=30.0,
             )
         )
@@ -318,7 +341,9 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
         return values
 
     client = _require_client(base_url)
-    response = _call_with_retry(lambda: client.embeddings.create(model=model_name, input=texts))
+    response = _call_with_retry(
+        lambda: client.embeddings.create(model=model_name, input=texts)
+    )
     return [list(item.embedding) for item in response.data]
 
 
@@ -364,14 +389,18 @@ def default_kg_model_func(
     entities = parsed.get("entities", [])
     relations = parsed.get("relations", [])
     if not isinstance(entities, list) or not isinstance(relations, list):
-        raise RuntimeError("KG extraction response is missing entities or relations arrays.")
+        raise RuntimeError(
+            "KG extraction response is missing entities or relations arrays."
+        )
     return {
         "entities": [item for item in entities if isinstance(item, dict)],
         "relations": [item for item in relations if isinstance(item, dict)],
     }
 
 
-def default_reranker_func(query: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def default_reranker_func(
+    query: str, items: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Rerank retrieval candidates through OpenAI-compatible or DashScope APIs."""
 
     client = _require_httpx()
@@ -385,14 +414,17 @@ def default_reranker_func(query: str, items: list[dict[str, Any]]) -> list[dict[
 
     documents = [str(item.get("text") or item.get("snippet") or "") for item in items]
     if _is_dashscope_url(base_url) and (
-        _looks_like_vl_rerank_model(model_name) or _looks_like_dashscope_text_rerank_model(model_name)
+        _looks_like_vl_rerank_model(model_name)
+        or _looks_like_dashscope_text_rerank_model(model_name)
     ):
         if _looks_like_vl_rerank_model(model_name):
             payload = {
                 "model": model_name,
                 "input": {
                     "query": {"text": query},
-                    "documents": [_build_multimodal_rerank_document(item) for item in items],
+                    "documents": [
+                        _build_multimodal_rerank_document(item) for item in items
+                    ],
                 },
                 "parameters": {
                     "top_n": len(documents),
@@ -410,7 +442,10 @@ def default_reranker_func(query: str, items: list[dict[str, Any]]) -> list[dict[
             lambda: client.post(
                 _get_dashscope_rerank_url(base_url, model_name),
                 json=payload,
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
                 timeout=30.0,
             )
         )
@@ -424,13 +459,21 @@ def default_reranker_func(query: str, items: list[dict[str, Any]]) -> list[dict[
                     "documents": documents,
                     "top_n": len(documents),
                 },
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                },
                 timeout=30.0,
             )
         )
     response.raise_for_status()
     body = response.json()
-    raw_results = body.get("output", {}).get("results") or body.get("results") or body.get("data") or []
+    raw_results = (
+        body.get("output", {}).get("results")
+        or body.get("results")
+        or body.get("data")
+        or []
+    )
     ranked = []
     for item in raw_results:
         index = int(item.get("index", 0))

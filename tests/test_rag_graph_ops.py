@@ -54,7 +54,12 @@ class GraphOpsTestCase(unittest.TestCase):
 
     def test_entity_and_relation_crud_refresh_vectors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            rag = EasyRAG(working_dir=tmp_dir, workspace="graph", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="graph",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
             _run(rag.initialize_storages())
             try:
                 service = _run(
@@ -79,8 +84,19 @@ class GraphOpsTestCase(unittest.TestCase):
                         description="Service API depends on Data Store.",
                     )
                 )
-                updated = _run(rag.aupdate_entity(service["id"], label="API Layer", aliases=["Gateway"]))
-                result = _run(rag.aquery("Service API", QueryParam(mode="local", rewrite_enabled=False, mqe_enabled=False)))
+                updated = _run(
+                    rag.aupdate_entity(
+                        service["id"], label="API Layer", aliases=["Gateway"]
+                    )
+                )
+                result = _run(
+                    rag.aquery(
+                        "Service API",
+                        QueryParam(
+                            mode="local", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
                 deleted = _run(rag.adelete_relation(relation["id"]))
                 aggregate = _run(rag.get_stats())
             finally:
@@ -94,16 +110,36 @@ class GraphOpsTestCase(unittest.TestCase):
 
     def test_insert_custom_kg_and_merge_entities_rewrite_relations(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            rag = EasyRAG(working_dir=tmp_dir, workspace="manual", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="manual",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
             _run(rag.initialize_storages())
             try:
                 inserted = _run(
                     rag.ainsert_custom_kg(
                         batch_id="manual-batch",
                         entities=[
-                            {"id": "entity::core-module", "label": "Core Module", "entity_types": ["module"], "description": "Legacy module."},
-                            {"id": "entity::platform-module", "label": "Platform Module", "entity_types": ["module"], "description": "Target module."},
-                            {"id": "entity::workflow-engine", "label": "Workflow Engine", "entity_types": ["workflow"], "description": "Execution workflow."},
+                            {
+                                "id": "entity::core-module",
+                                "label": "Core Module",
+                                "entity_types": ["module"],
+                                "description": "Legacy module.",
+                            },
+                            {
+                                "id": "entity::platform-module",
+                                "label": "Platform Module",
+                                "entity_types": ["module"],
+                                "description": "Target module.",
+                            },
+                            {
+                                "id": "entity::workflow-engine",
+                                "label": "Workflow Engine",
+                                "entity_types": ["workflow"],
+                                "description": "Execution workflow.",
+                            },
                         ],
                         relations=[
                             {
@@ -116,12 +152,34 @@ class GraphOpsTestCase(unittest.TestCase):
                         ],
                     )
                 )
-                before_merge = _run(rag.aquery("Core Module", QueryParam(mode="local", rewrite_enabled=False, mqe_enabled=False)))
-                merged = _run(rag.amerge_entities("entity::core-module", "entity::platform-module"))
+                before_merge = _run(
+                    rag.aquery(
+                        "Core Module",
+                        QueryParam(
+                            mode="local", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
+                merged = _run(
+                    rag.amerge_entities(
+                        "entity::core-module", "entity::platform-module"
+                    )
+                )
                 target = _run(rag.graph_storage.get_node("entity::platform-module"))
                 source = _run(rag.graph_storage.get_node("entity::core-module"))
-                relations = _run(rag.graph_storage.list_relations(entity_id="entity::platform-module"))
-                after_merge = _run(rag.aquery("Core Module", QueryParam(mode="local", rewrite_enabled=False, mqe_enabled=False)))
+                relations = _run(
+                    rag.graph_storage.list_relations(
+                        entity_id="entity::platform-module"
+                    )
+                )
+                after_merge = _run(
+                    rag.aquery(
+                        "Core Module",
+                        QueryParam(
+                            mode="local", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                    )
+                )
             finally:
                 _run(rag.finalize_storages())
 
@@ -131,16 +189,35 @@ class GraphOpsTestCase(unittest.TestCase):
             self.assertIsNone(source)
             self.assertIn("Core Module", target["aliases"])
             self.assertEqual(len(relations), 1)
-            self.assertEqual(relations[0]["source_entity_id"], "entity::platform-module")
+            self.assertEqual(
+                relations[0]["source_entity_id"], "entity::platform-module"
+            )
             self.assertIn("Platform Module", after_merge.entities)
 
     def test_merge_relations_preserves_target_relation_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            rag = EasyRAG(working_dir=tmp_dir, workspace="relations", embedding_func=_stub_embedding, query_model_func=_stub_query_model)
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="relations",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+            )
             _run(rag.initialize_storages())
             try:
-                left = _run(rag.acreate_entity(label="Service Mesh", entity_types=["component"], description="Traffic component."))
-                right = _run(rag.acreate_entity(label="Runtime Config", entity_types=["config"], description="Runtime settings."))
+                left = _run(
+                    rag.acreate_entity(
+                        label="Service Mesh",
+                        entity_types=["component"],
+                        description="Traffic component.",
+                    )
+                )
+                right = _run(
+                    rag.acreate_entity(
+                        label="Runtime Config",
+                        entity_types=["config"],
+                        description="Runtime settings.",
+                    )
+                )
                 _run(
                     rag.acreate_relation(
                         relation_id="relation::one",
