@@ -1,6 +1,6 @@
 # EasyRAG
 
-logo
+![logo](./new_logo.png)
 
 EasyRAG is a lightweight RAG project built for both learning and hands-on engineering. It breaks a small RAG system into visible stages: data loading, indexing, retrieval, generation, evaluation, optimization, and system architecture. Those stages are unpacked step by step through `docs/`, Jupyter notebooks, and a compact, readable codebase.
 
