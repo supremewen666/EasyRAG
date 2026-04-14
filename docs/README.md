@@ -27,13 +27,6 @@ Current status:
 - [07-optimization-overview.md](07-optimization-overview.md): optimization roadmap, currently docs-only
 - [08-system-architecture-overview.md](08-system-architecture-overview.md): a system-level look back across the full stack
 
-Notes:
-
-- `01-rag-basics` remains a docs-only glossary and foundation page
-- `07-optimization-overview` remains a docs-only roadmap
-- `06-evaluation-overview` is part of the main path now, not just a supplemental section
-- Several overview pages now explicitly include common production ideas such as normalization, metadata filtering, hybrid retrieval, reranking, latency/cost tradeoffs, and fallback
-
 ## Principles
 
 - [10-query-preprocessing.md](principles/10-query-preprocessing.md)
@@ -49,11 +42,6 @@ Notes:
 - [20-generation-failures-and-guardrails.md](principles/20-generation-failures-and-guardrails.md)
 - [21-evaluation-and-debugging.md](principles/21-evaluation-and-debugging.md)
 
-Notes:
-
-- `principles` follows the path from input to answer, then into evaluation and optimization
-- generation-related topics are grouped together, with evaluation placed at the end so the reading path stays linear
-
 ## Engineering
 
 - [20-code-map.md](engineering/20-code-map.md)
@@ -63,11 +51,6 @@ Notes:
 - [24-graph-curation-pipeline.md](engineering/24-graph-curation-pipeline.md)
 - [25-local-vs-production-backends.md](engineering/25-local-vs-production-backends.md)
 - [26-extension-guide.md](engineering/26-extension-guide.md)
-
-Notes:
-
-- `engineering` starts with a code-level overview, then follows the runtime path, then covers system boundaries, and ends with extension points
-- [20-code-map.md](engineering/20-code-map.md) is the main entry point for the engineering section, and the later pages assume you start there
 
 ## Teaching anchors
 

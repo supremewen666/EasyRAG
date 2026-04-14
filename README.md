@@ -1,10 +1,26 @@
 # EasyRAG
 
-![logo](./new_logo.png)
+logo
 
 EasyRAG is a lightweight RAG project built for both learning and hands-on engineering. It breaks a small RAG system into visible stages: data loading, indexing, retrieval, generation, evaluation, optimization, and system architecture. Those stages are unpacked step by step through `docs/`, Jupyter notebooks, and a compact, readable codebase.
 
 If you want to learn more than "how to call a black-box RAG API" and actually see the intermediate objects, tradeoffs, and implementation points, this repository was made for that.
+
+## Chapter navigation
+
+
+| Stage                  | Docs overview                                                                      | Connected notebooks                                                                                                                                       | Best for                                                         |
+| ---------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 00 Overview            | [docs/00-overview.md](docs/00-overview.md)                                         | [00_01 quickstart](notebooks/00_overview/00_01_quickstart_end_to_end.ipynb), [00_02 artifacts](notebooks/00_overview/00_02_observing_rag_artifacts.ipynb) | seeing the full loop once before going deeper                    |
+| 01 RAG basics          | [docs/01-rag-basics.md](docs/01-rag-basics.md)                                     | docs-only for now                                                                                                                                         | building the core mental model and key objects                   |
+| 02 Data loading        | [docs/02-data-loading-overview.md](docs/02-data-loading-overview.md)               | [02_01-02_05](notebooks/02_data_loading)                                                                                                                  | understanding how raw material becomes a usable `Document`       |
+| 03 Indexing            | [docs/03-indexing-overview.md](docs/03-indexing-overview.md)                       | [03_01-03_08](notebooks/03_indexing)                                                                                                                      | chunking, embeddings, vector index, and build artifacts          |
+| 04 Retrieval           | [docs/04-retrieval-overview.md](docs/04-retrieval-overview.md)                     | [04_01-04_07](notebooks/04_retrieval)                                                                                                                     | query processing, hybrid retrieval, fusion, reranking, hydration |
+| 05 Generation          | [docs/05-generation-overview.md](docs/05-generation-overview.md)                   | [05_01-05_05](notebooks/05_generation)                                                                                                                    | turning retrieved evidence into answers and guardrails           |
+| 06 Evaluation          | [docs/06-evaluation-overview.md](docs/06-evaluation-overview.md)                   | [06_01-06_06](notebooks/06_evaluation)                                                                                                                    | measuring retrieval and answer quality, then debugging           |
+| 07 Optimization        | [docs/07-optimization-overview.md](docs/07-optimization-overview.md)               | docs-only for now                                                                                                                                         | improving the system from evaluation signals                     |
+| 08 System architecture | [docs/08-system-architecture-overview.md](docs/08-system-architecture-overview.md) | [08_01-08_03](notebooks/08_system_architecture)                                                                                                           | code map, backends, observability, and fallback                  |
+
 
 ## What makes this project useful
 
@@ -126,6 +142,18 @@ Read the main line in order:
 8. [docs/07-optimization-overview.md](docs/07-optimization-overview.md)
 9. [docs/08-system-architecture-overview.md](docs/08-system-architecture-overview.md)
 
+If you want to alternate between concept and practice, pair the docs with notebooks like this:
+
+- `00-overview` -> `00_01`, `00_02`
+- `01-rag-basics` -> docs-only for now
+- `02-data-loading-overview` -> `02_01` to `02_05`
+- `03-indexing-overview` -> `03_01` to `03_08`
+- `04-retrieval-overview` -> `04_01` to `04_07`
+- `05-generation-overview` -> `05_01` to `05_05`
+- `06-evaluation-overview` -> `06_01` to `06_06`
+- `07-optimization-overview` -> docs-only for now
+- `08-system-architecture-overview` -> `08_01` to `08_03`
+
 ### Path B: learning mainly through notebooks
 
 These notebooks make a good starting set:
@@ -158,29 +186,17 @@ Supporting docs:
 
 ## Content map
 
-| Module | What you will find | Best time to open it |
-| --- | --- | --- |
-| [docs/README.md](docs/README.md) | Master index for all documentation | When you want to follow the course-style main path |
-| [notebooks/README.md](notebooks/README.md) | Stage-based navigation for all notebooks | When you want to run experiments directly |
-| [docs/principles/](docs/principles) | Topic-focused method notes such as chunking, hybrid retrieval, packing, and evaluation | When you want to go deep on one subject |
-| [docs/engineering/](docs/engineering) | Code structure, runtime flow, and extension points | When you want to move from teaching material into implementation details |
-| [scripts/build_index.py](scripts/build_index.py) | Index build and maintenance script | When you want to move from demo mode to a real repo-level workflow |
-| [sample_data/](sample_data) | Small sample corpora | When you want to inspect artifacts on a tiny dataset |
-| [examples/README.md](examples/README.md) | Example script directory | When you want to see where future script-based entry points may go |
 
-## Main course map
+| Module                                           | What you will find                                                                     | Best time to open it                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [docs/README.md](docs/README.md)                 | Master index for all documentation                                                     | When you want to follow the course-style main path                       |
+| [notebooks/README.md](notebooks/README.md)       | Stage-based navigation for all notebooks                                               | When you want to run experiments directly                                |
+| [docs/principles/](docs/principles)              | Topic-focused method notes such as chunking, hybrid retrieval, packing, and evaluation | When you want to go deep on one subject                                  |
+| [docs/engineering/](docs/engineering)            | Code structure, runtime flow, and extension points                                     | When you want to move from teaching material into implementation details |
+| [scripts/build_index.py](scripts/build_index.py) | Index build and maintenance script                                                     | When you want to move from demo mode to a real repo-level workflow       |
+| [sample_data/](sample_data)                      | Small sample corpora                                                                   | When you want to inspect artifacts on a tiny dataset                     |
+| [examples/README.md](examples/README.md)         | Example script directory                                                               | When you want to see where future script-based entry points may go       |
 
-| Stage | Docs | Notebook / format | Keywords |
-| --- | --- | --- | --- |
-| 00 Overview | [00-overview.md](docs/00-overview.md) | [00_01](notebooks/00_overview/00_01_quickstart_end_to_end.ipynb), [00_02](notebooks/00_overview/00_02_observing_rag_artifacts.ipynb) | minimum viable loop, artifact inspection |
-| 01 RAG basics | [01-rag-basics.md](docs/01-rag-basics.md) | docs-only | `Document`, `QueryResult`, stage boundaries |
-| 02 Data loading | [02-data-loading-overview.md](docs/02-data-loading-overview.md) | [02_01-02_05](notebooks/02_data_loading) | repo loading, manual docs, PDF, normalization |
-| 03 Indexing | [03-indexing-overview.md](docs/03-indexing-overview.md) | [03_01-03_08](notebooks/03_indexing) | chunking, embeddings, vector index, workspace artifacts |
-| 04 Retrieval | [04-retrieval-overview.md](docs/04-retrieval-overview.md) | [04_01-04_07](notebooks/04_retrieval) | preprocessing, rewrite, hybrid, fusion, rerank, hydration |
-| 05 Generation | [05-generation-overview.md](docs/05-generation-overview.md) | [05_01-05_05](notebooks/05_generation) | evidence selection, packing, prompting, guardrails |
-| 06 Evaluation | [06-evaluation-overview.md](docs/06-evaluation-overview.md) | [06_01-06_06](notebooks/06_evaluation) | tiny eval set, retrieval metrics, grounding, regression |
-| 07 Optimization | [07-optimization-overview.md](docs/07-optimization-overview.md) | docs-only | tuning roadmap, working backward from evaluation |
-| 08 Architecture | [08-system-architecture-overview.md](docs/08-system-architecture-overview.md) | [08_01-08_03](notebooks/08_system_architecture) | code map, backends, observability, fallback |
 
 ## Core teaching objects
 

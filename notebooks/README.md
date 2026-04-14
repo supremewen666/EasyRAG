@@ -12,13 +12,6 @@ The EasyRAG notebooks are organized by teaching stage and follow the same number
 - `06_evaluation/`: evaluation basics, tiny eval sets, retrieval metrics, grounding, regression
 - `08_system_architecture/`: code map, backends, observability
 
-Notes:
-
-- `01-rag-basics` is docs-only, so there is no notebook directory for it
-- `07_optimization` is also docs-only for now
-- The directory structure and naming are stable, and the notebooks now follow a more consistent teaching template with code anchors, stage explanations, and debugging cues
-- Evaluation is part of the main learning path now, not just an appendix
-
 ## 00 Overview
 
 - [00_01_quickstart_end_to_end.ipynb](00_overview/00_01_quickstart_end_to_end.ipynb): the minimum end-to-end loop
