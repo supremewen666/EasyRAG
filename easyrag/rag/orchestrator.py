@@ -8,7 +8,15 @@ from typing import Sequence
 from uuid import uuid4
 
 from easyrag.support.optional_deps import Document
-from easyrag.config import get_kg_entity_types, get_rag_working_dir, get_rag_workspace
+from easyrag.config import (
+    get_kg_entity_types,
+    get_rag_working_dir,
+    get_rag_workspace,
+    has_embedding_model_config,
+    has_kg_model_config,
+    has_query_model_config,
+    has_rerank_model_config,
+)
 from easyrag.rag.generation.pipeline import generate_answer
 from easyrag.rag.indexing.chunking import ChunkingConfig, build_chunker_registry
 from easyrag.rag.indexing.loaders import load_repo_documents
@@ -98,16 +106,16 @@ class EasyRAG:
         self.workspace = workspace or get_rag_workspace()
         self.workspace_dir = self.working_dir / self.workspace
         self.llm_model_func = llm_model_func or (
-            default_kg_model_func if can_use_openai_compatible_models() else None
+            default_kg_model_func if has_kg_model_config() else None
         )
         self.query_model_func = query_model_func or (
-            default_query_model_func if can_use_openai_compatible_models() else None
+            default_query_model_func if has_query_model_config() else None
         )
         self.embedding_func = embedding_func or (
-            default_embedding_func if can_use_openai_compatible_models() else None
+            default_embedding_func if has_embedding_model_config() else None
         )
         self.reranker_func = reranker_func or (
-            default_reranker_func if can_use_openai_compatible_models() else None
+            default_reranker_func if has_rerank_model_config() else None
         )
         self.answer_model_func = answer_model_func
         self.kg_extraction_config = _resolve_kg_extraction_config(kg_extraction_config)

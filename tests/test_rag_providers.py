@@ -76,6 +76,7 @@ class ProviderAdapterTestCase(unittest.TestCase):
         os.environ["EASYRAG_EMBEDDING_BASE_URL"] = (
             "https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
+        os.environ["EASYRAG_EMBEDDING_API_KEY"] = "dashscope-key"
         fake_httpx = _FakeHTTPX(
             {
                 "output": {
@@ -103,6 +104,9 @@ class ProviderAdapterTestCase(unittest.TestCase):
         self.assertEqual(
             fake_httpx.calls[0]["json"]["input"]["contents"][1]["text"], "beta"
         )
+        self.assertEqual(
+            fake_httpx.calls[0]["headers"]["Authorization"], "Bearer dashscope-key"
+        )
         self.assertTrue(
             fake_httpx.calls[0]["json"]["input"]["contents"][1]["image"].startswith(
                 "data:image/png;base64,"
@@ -112,12 +116,14 @@ class ProviderAdapterTestCase(unittest.TestCase):
     def test_openai_compatible_embedding_path_still_works(self) -> None:
         os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "text-embedding-v4"
         os.environ["EASYRAG_EMBEDDING_BASE_URL"] = "https://api.example.com/v1"
+        os.environ["EASYRAG_EMBEDDING_API_KEY"] = "embed-key"
 
         with patch.object(providers, "OpenAI", _FakeOpenAIClient):
             vectors = providers.default_embedding_func(["alpha"])
 
         self.assertEqual(vectors, [[0.1, 0.2]])
         self.assertEqual(len(_FakeOpenAIClient.instances), 1)
+        self.assertEqual(_FakeOpenAIClient.instances[0].api_key, "embed-key")
         self.assertEqual(
             _FakeOpenAIClient.instances[0].base_url, "https://api.example.com/v1"
         )
@@ -129,6 +135,7 @@ class ProviderAdapterTestCase(unittest.TestCase):
     def test_embedding_retries_transient_failures(self) -> None:
         os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "text-embedding-v4"
         os.environ["EASYRAG_EMBEDDING_BASE_URL"] = "https://api.example.com/v1"
+        os.environ["EASYRAG_EMBEDDING_API_KEY"] = "embed-key"
 
         class _FlakyEmbeddingsAPI:
             def __init__(self) -> None:
@@ -162,6 +169,7 @@ class ProviderAdapterTestCase(unittest.TestCase):
     def test_embedding_does_not_retry_non_transient_failures(self) -> None:
         os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "text-embedding-v4"
         os.environ["EASYRAG_EMBEDDING_BASE_URL"] = "https://api.example.com/v1"
+        os.environ["EASYRAG_EMBEDDING_API_KEY"] = "embed-key"
 
         class _PermanentEmbeddingsAPI:
             def __init__(self) -> None:
@@ -191,6 +199,7 @@ class ProviderAdapterTestCase(unittest.TestCase):
         os.environ["EASYRAG_RERANK_BASE_URL"] = (
             "https://dashscope.aliyuncs.com/compatible-mode/v1"
         )
+        os.environ["EASYRAG_RERANK_API_KEY"] = "dashscope-key"
         fake_httpx = _FakeHTTPX(
             {
                 "output": {
@@ -229,6 +238,9 @@ class ProviderAdapterTestCase(unittest.TestCase):
         self.assertEqual(
             fake_httpx.calls[0]["json"]["input"]["documents"][1]["text"], "second"
         )
+        self.assertEqual(
+            fake_httpx.calls[0]["headers"]["Authorization"], "Bearer dashscope-key"
+        )
         self.assertTrue(
             fake_httpx.calls[0]["json"]["input"]["documents"][1]["image"].startswith(
                 "data:image/png;base64,"
@@ -240,6 +252,7 @@ class ProviderAdapterTestCase(unittest.TestCase):
         os.environ["EASYRAG_RERANK_BASE_URL"] = (
             "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
         )
+        os.environ["EASYRAG_RERANK_API_KEY"] = "dashscope-key"
         fake_httpx = _FakeHTTPX({"results": [{"index": 0, "relevance_score": 0.7}]})
 
         with patch.object(providers, "httpx", fake_httpx):
@@ -249,6 +262,17 @@ class ProviderAdapterTestCase(unittest.TestCase):
             fake_httpx.calls[0]["url"],
             "https://dashscope-intl.aliyuncs.com/compatible-api/v1/reranks",
         )
+
+    def test_local_hash_embedding_returns_dense_vectors_without_api_keys(self) -> None:
+        os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "local-hash-16"
+        os.environ.pop("OPENAI_API_KEY", None)
+        os.environ.pop("EASYRAG_EMBEDDING_API_KEY", None)
+        vectors = providers.default_embedding_func(["alpha beta", {"text": "beta"}])
+
+        self.assertEqual(len(vectors), 2)
+        self.assertEqual(len(vectors[0]), 17)
+        self.assertEqual(len(vectors[1]), 17)
+        self.assertNotEqual(vectors[0], vectors[1])
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from easyrag.config import (
     get_rag_index_path,
@@ -20,6 +20,11 @@ from easyrag.support.async_utils import run_sync
 from easyrag.support.optional_deps import Document
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
+
+if TYPE_CHECKING:
+    from easyrag.rag.orchestrator import EasyRAG
+
+RAGFactory = Callable[[Path, str], "EasyRAG"]
 
 
 def _run_async(awaitable: object) -> object:
@@ -46,7 +51,9 @@ def _tokenize(text: str) -> list[str]:
     return _TOKEN_PATTERN.findall(text.lower())
 
 
-def write_legacy_snapshot(documents: Sequence[Document]) -> None:
+def write_legacy_snapshot(
+    documents: Sequence[Document], *, index_path: str | Path | None = None
+) -> None:
     """Write the compatibility JSON snapshot for local inspection and tests."""
 
     payload = [
@@ -57,9 +64,11 @@ def write_legacy_snapshot(documents: Sequence[Document]) -> None:
         }
         for chunk in chunk_documents(documents, config=ChunkingConfig())
     ]
-    index_path = get_rag_index_path()
-    index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(
+    resolved_index_path = (
+        Path(index_path).resolve() if index_path is not None else get_rag_index_path()
+    )
+    resolved_index_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_index_path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
@@ -71,12 +80,17 @@ async def _build_workspace(
     *,
     target_doc_ids: list[str] | None = None,
     full_sync: bool = False,
+    rag_factory: RAGFactory | None = None,
 ) -> None:
     """Populate or synchronize one EasyRAG workspace in a single async lifecycle."""
 
     from easyrag.rag.orchestrator import EasyRAG
 
-    rag = EasyRAG(working_dir=working_dir, workspace=workspace)
+    rag = (
+        rag_factory(working_dir, workspace)
+        if rag_factory is not None
+        else EasyRAG(working_dir=working_dir, workspace=workspace)
+    )
     await rag.initialize_storages()
     try:
         selected_doc_ids = list(
@@ -130,22 +144,52 @@ async def _build_workspace(
         await rag.finalize_storages()
 
 
-def build_vector_index(documents: list[Document]) -> None:
+def build_vector_index(
+    documents: list[Document],
+    *,
+    working_dir: str | Path | None = None,
+    workspace: str | None = None,
+    index_path: str | Path | None = None,
+    rag_factory: RAGFactory | None = None,
+) -> None:
     """Build the EasyRAG workspace and a legacy JSON snapshot for compatibility."""
 
-    working_dir, workspace = _resolve_legacy_storage_location()
-    _run_async(_build_workspace(documents, working_dir, workspace))
-    write_legacy_snapshot(documents)
+    resolved_working_dir, resolved_workspace = _resolve_legacy_storage_location()
+    working_dir_path = (
+        Path(working_dir).resolve()
+        if working_dir is not None
+        else resolved_working_dir.resolve()
+    )
+    workspace_name = workspace or resolved_workspace
+    _run_async(
+        _build_workspace(
+            documents,
+            working_dir_path,
+            workspace_name,
+            rag_factory=rag_factory,
+        )
+    )
+    write_legacy_snapshot(documents, index_path=index_path)
 
 
 def rebuild_document_index(
     repo_root: str | Path | None = None,
     *,
     doc_ids: list[str] | tuple[str, ...] | None = None,
+    working_dir: str | Path | None = None,
+    workspace: str | None = None,
+    index_path: str | Path | None = None,
+    rag_factory: RAGFactory | None = None,
 ) -> Path:
     """Discover repository docs and rebuild the default EasyRAG workspace."""
 
     root = Path(repo_root).resolve() if repo_root is not None else get_repo_root()
+    working_dir_path = (
+        Path(working_dir).resolve()
+        if working_dir is not None
+        else get_rag_working_dir()
+    )
+    workspace_name = workspace or get_rag_workspace()
     documents = load_repo_documents(root)
     normalized_doc_ids = list(
         dict.fromkeys(
@@ -155,14 +199,15 @@ def rebuild_document_index(
     _run_async(
         _build_workspace(
             documents,
-            get_rag_working_dir(),
-            get_rag_workspace(),
+            working_dir_path,
+            workspace_name,
             target_doc_ids=normalized_doc_ids or None,
             full_sync=not normalized_doc_ids,
+            rag_factory=rag_factory,
         )
     )
-    write_legacy_snapshot(documents)
-    return get_rag_working_dir() / get_rag_workspace()
+    write_legacy_snapshot(documents, index_path=index_path)
+    return working_dir_path / workspace_name
 
 
 __all__ = ["build_vector_index", "rebuild_document_index", "write_legacy_snapshot"]

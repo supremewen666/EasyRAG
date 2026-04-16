@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from easyrag.support.optional_deps import Document
+from easyrag.rag.retrieval.provenance import (
+    normalize_vector_backends,
+    select_primary_vector_backend,
+)
 
 if TYPE_CHECKING:
     from easyrag.rag.orchestrator import EasyRAG
@@ -20,7 +24,7 @@ async def hydrate_record(
         chunk = await rag.kv_storage.get_chunk(record_id)
         if chunk is None:
             return None
-        return {
+        hydrated = {
             "id": record_id,
             "text": str(chunk.get("text", "")),
             "title": str(chunk.get("title", "")),
@@ -28,12 +32,14 @@ async def hydrate_record(
             "metadata": dict(chunk.get("metadata", {})),
             "score": float(record.get("score", 0.0)),
             "vector_backend": str(record.get("vector_backend", "")),
+            "vector_backends": list(record.get("vector_backends", []) or []),
         }
+        return normalize_vector_backends(hydrated)
     if record_id.startswith("summary::"):
         summary = await rag.kv_storage.get_summary(record_id)
         if summary is None:
             return None
-        return {
+        hydrated = {
             "id": record_id,
             "text": str(summary.get("text", "")),
             "title": str(summary.get("title", "")),
@@ -41,8 +47,10 @@ async def hydrate_record(
             "metadata": dict(summary.get("metadata", {})),
             "score": float(record.get("score", 0.0)),
             "vector_backend": str(record.get("vector_backend", "")),
+            "vector_backends": list(record.get("vector_backends", []) or []),
         }
-    return dict(record)
+        return normalize_vector_backends(hydrated)
+    return normalize_vector_backends(dict(record))
 
 
 async def hydrate_records(
@@ -88,9 +96,12 @@ def build_citations(chunks: list[Document]) -> list[dict[str, str]]:
 def detect_vector_backend(records: list[dict[str, object]]) -> str:
     """Return the best backend label implied by the retrieved records."""
 
-    vector_backends = {str(item.get("vector_backend", "")) for item in records}
-    if "hnsw_embedding" in vector_backends:
-        return "hnsw_embedding"
-    if "dense_embedding" in vector_backends:
-        return "dense_embedding"
-    return "fallback_token"
+    vector_backends: set[str] = set()
+    for item in records:
+        normalized = normalize_vector_backends(dict(item))
+        vector_backends.update(
+            str(value)
+            for value in normalized.get("vector_backends", [])
+            if str(value).strip()
+        )
+    return select_primary_vector_backend(vector_backends)

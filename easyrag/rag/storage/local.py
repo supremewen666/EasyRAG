@@ -56,6 +56,98 @@ def _write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _empty_graph_payload() -> dict[str, dict[str, dict[str, Any]]]:
+    """Return the stable on-disk graph payload shape."""
+
+    return {"nodes": {}, "edges": {}}
+
+
+def _normalize_graph_payload(payload: Any) -> dict[str, dict[str, dict[str, Any]]]:
+    """Normalize legacy and node-link graph payloads into one stable dict shape."""
+
+    normalized = _empty_graph_payload()
+    if not isinstance(payload, dict):
+        return normalized
+
+    raw_nodes = payload.get("nodes", {})
+    raw_edges = payload.get("edges", payload.get("links", {}))
+
+    if isinstance(raw_nodes, dict):
+        normalized["nodes"] = {
+            str(node_id): dict(node)
+            for node_id, node in raw_nodes.items()
+            if isinstance(node, dict)
+        }
+    elif isinstance(raw_nodes, list):
+        for node in raw_nodes:
+            if not isinstance(node, dict):
+                continue
+            node_id = str(node.get("id", "")).strip()
+            if not node_id:
+                continue
+            normalized["nodes"][node_id] = dict(node)
+
+    if isinstance(raw_edges, dict):
+        normalized["edges"] = {
+            str(edge_id): dict(edge)
+            for edge_id, edge in raw_edges.items()
+            if isinstance(edge, dict)
+        }
+    elif isinstance(raw_edges, list):
+        for edge in raw_edges:
+            if not isinstance(edge, dict):
+                continue
+            source = str(edge.get("source", "")).strip()
+            target = str(edge.get("target", "")).strip()
+            if not source or not target:
+                continue
+            edge_key = "|".join(sorted((source, target)))
+            normalized["edges"][edge_key] = {
+                **dict(edge),
+                "source": source,
+                "target": target,
+            }
+
+    return normalized
+
+
+def _payload_to_networkx_graph(payload: dict[str, dict[str, dict[str, Any]]]) -> Any:
+    """Build a runtime graph object from the stable on-disk payload."""
+
+    graph = nx.Graph()
+    for node_id, node in payload.get("nodes", {}).items():
+        graph.add_node(str(node_id), **dict(node))
+    for edge in payload.get("edges", {}).values():
+        source = str(edge.get("source", "")).strip()
+        target = str(edge.get("target", "")).strip()
+        if not source or not target:
+            continue
+        graph.add_edge(source, target, **dict(edge))
+    return graph
+
+
+def _graph_to_stable_payload(graph: Any) -> dict[str, dict[str, dict[str, Any]]]:
+    """Serialize a runtime graph into the stable dict payload shape."""
+
+    if nx is None:
+        return _normalize_graph_payload(graph)
+
+    payload = _empty_graph_payload()
+    for node_id, node in graph.nodes(data=True):
+        normalized_id = str(node_id)
+        payload["nodes"][normalized_id] = {"id": normalized_id, **dict(node)}
+    for source, target, edge in graph.edges(data=True):
+        normalized_source = str(source)
+        normalized_target = str(target)
+        edge_key = "|".join(sorted((normalized_source, normalized_target)))
+        payload["edges"][edge_key] = {
+            **dict(edge),
+            "source": normalized_source,
+            "target": normalized_target,
+        }
+    return payload
+
+
 def _merge_owner_maps(
     existing: dict[str, Any], incoming: dict[str, Any]
 ) -> dict[str, Any]:
@@ -521,6 +613,7 @@ class TokenVectorStorage(BaseVectorStorage):
             item = dict(payload)
             item["score"] = score[0] * 100 + score[1] * 10 + score[2]
             item["vector_backend"] = "fallback_token"
+            item["vector_backends"] = ["fallback_token"]
             results.append(item)
         return results
 
@@ -771,6 +864,7 @@ class EmbeddingVectorStorage(BaseVectorStorage):
                 item = dict(bucket[item_id])
                 item["score"] = float(scores[index])
                 item["vector_backend"] = "dense_embedding"
+                item["vector_backends"] = ["dense_embedding"]
                 results.append(item)
             return results
         except Exception:
@@ -824,6 +918,7 @@ class EmbeddingVectorStorage(BaseVectorStorage):
             item = dict(bucket[item_id])
             item["score"] = score
             item["vector_backend"] = "hnsw_embedding"
+            item["vector_backends"] = ["hnsw_embedding"]
             results.append(item)
         return results
 
@@ -871,10 +966,10 @@ class NetworkXGraphStorage(BaseGraphStorage):
 
     async def initialize(self) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        payload = _read_json(self._path, None)
-        if payload and nx is not None:
-            self._graph = nx.node_link_graph(payload)
-        elif payload:
+        payload = _normalize_graph_payload(_read_json(self._path, None))
+        if nx is not None:
+            self._graph = _payload_to_networkx_graph(payload)
+        else:
             self._graph = payload
         raw_relations = _read_json(self._relations_path, {})
         self._relations = {
@@ -888,10 +983,7 @@ class NetworkXGraphStorage(BaseGraphStorage):
             self._refresh_relation_edge(source_entity_id, target_entity_id)
 
     async def finalize(self) -> None:
-        if nx is not None:
-            payload = nx.node_link_data(self._graph)
-        else:
-            payload = self._graph
+        payload = _graph_to_stable_payload(self._graph)
         _write_json(self._path, payload)
         _write_json(self._relations_path, self._relations)
 

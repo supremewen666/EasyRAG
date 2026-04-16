@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from easyrag.rag.generation.output import split_answer_sections
 from easyrag.rag.generation.selection import (
     has_citation_marker,
     normalize_citation_snippet,
@@ -42,6 +43,18 @@ def _citations_support_question(question: str, citations: list[dict[str, str]]) 
         if len(question_tokens & snippet_tokens) >= required_overlap:
             return True
     return False
+
+
+def _classify_evidence_support(
+    question: str, citations: list[dict[str, str]]
+) -> str:
+    """Return one coarse support label for the selected evidence."""
+
+    if not citations:
+        return "none"
+    if _citations_support_question(question, citations):
+        return "supported"
+    return "weak"
 
 
 def _ensure_citation_markers(
@@ -141,15 +154,30 @@ def synthesize_answer(
 ) -> tuple[str, dict[str, Any]]:
     """Synthesize one answer from a packed evidence set."""
 
-    if not citations and param.allow_abstain:
-        return _ABSTAIN_TEXT, {
-            "abstained": True,
+    evidence_mode = param.evidence_mode.strip().lower()
+    evidence_support = _classify_evidence_support(question, citations)
+    base_metadata: dict[str, Any] = {
+        "evidence_support": evidence_support,
+        "additional_context": "",
+        "additional_context_present": False,
+        "prior_knowledge_used": False,
+    }
+
+    if not citations:
+        fallback = _fallback_answer(question, citations, param)
+        metadata = {
+            "abstained": fallback == _ABSTAIN_TEXT,
             "answer_model_used": False,
             "fallback_used": True,
+            **base_metadata,
         }
+        if param.allow_abstain:
+            metadata["insufficient_evidence"] = True
+        return fallback, metadata
     if (
         citations
-        and not _citations_support_question(question, citations)
+        and evidence_mode == "grounded_only"
+        and evidence_support != "supported"
         and param.allow_abstain
     ):
         return _ABSTAIN_TEXT, {
@@ -157,6 +185,21 @@ def synthesize_answer(
             "answer_model_used": False,
             "fallback_used": True,
             "insufficient_evidence": True,
+            **base_metadata,
+        }
+    if (
+        citations
+        and evidence_mode == "grounded_plus_prior"
+        and evidence_support == "weak"
+        and answer_model_func is None
+        and param.allow_abstain
+    ):
+        return _ABSTAIN_TEXT, {
+            "abstained": True,
+            "answer_model_used": False,
+            "fallback_used": True,
+            "insufficient_evidence": True,
+            **base_metadata,
         }
 
     if answer_model_func is not None:
@@ -167,15 +210,19 @@ def synthesize_answer(
                 citations=citations,
                 style=param.style,
             )
-            answer = str(generated or "").strip()
+            answer, additional_context = split_answer_sections(str(generated or ""))
             if answer:
-                answer = _ensure_citation_markers(
+                grounded_answer = _ensure_citation_markers(
                     answer, citations, require_citations=param.require_citations
                 )
-                return answer, {
-                    "abstained": answer == _ABSTAIN_TEXT,
+                return grounded_answer, {
+                    **base_metadata,
+                    "abstained": grounded_answer == _ABSTAIN_TEXT,
                     "answer_model_used": True,
                     "fallback_used": False,
+                    "additional_context": additional_context,
+                    "additional_context_present": bool(additional_context),
+                    "prior_knowledge_used": bool(additional_context),
                 }
         except Exception as exc:
             fallback = _fallback_answer(question, citations, param)
@@ -184,6 +231,7 @@ def synthesize_answer(
                 "answer_model_used": True,
                 "fallback_used": True,
                 "answer_model_error": str(exc),
+                **base_metadata,
             }
 
     fallback = _fallback_answer(question, citations, param)
@@ -191,4 +239,5 @@ def synthesize_answer(
         "abstained": fallback == _ABSTAIN_TEXT,
         "answer_model_used": False,
         "fallback_used": True,
+        **base_metadata,
     }

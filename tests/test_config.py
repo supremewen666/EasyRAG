@@ -6,17 +6,22 @@ import os
 import unittest
 
 from easyrag.config import (
+    get_embedding_api_key,
     get_embedding_base_url,
     get_embedding_model_name,
+    get_kg_api_key,
     get_kg_base_url,
     get_kg_entity_types,
     get_kg_model_name,
     get_model_name,
     get_openai_base_url,
+    get_query_api_key,
     get_query_base_url,
     get_query_model_name,
+    get_rerank_api_key,
     get_rerank_base_url,
     get_rerank_model_name,
+    has_embedding_model_config,
 )
 
 
@@ -121,6 +126,67 @@ class ConfigTestCase(unittest.TestCase):
                 os.environ.pop("EASYRAG_RERANK_BASE_URL", None)
             else:
                 os.environ["EASYRAG_RERANK_BASE_URL"] = old_rerank
+
+    def test_role_specific_api_keys_fall_back_to_shared_and_vendor_keys(self) -> None:
+        old_openai = os.environ.get("OPENAI_API_KEY")
+        old_query = os.environ.get("EASYRAG_QUERY_API_KEY")
+        old_embed = os.environ.get("EASYRAG_EMBEDDING_API_KEY")
+        old_rerank = os.environ.get("EASYRAG_RERANK_API_KEY")
+        old_kg = os.environ.get("EASYRAG_KG_API_KEY")
+        old_dashscope = os.environ.get("DASHSCOPE_API_KEY")
+        os.environ["OPENAI_API_KEY"] = "shared-key"
+        os.environ["DASHSCOPE_API_KEY"] = "dashscope-key"
+        os.environ["EASYRAG_QUERY_API_KEY"] = "query-key"
+        os.environ.pop("EASYRAG_EMBEDDING_API_KEY", None)
+        os.environ.pop("EASYRAG_RERANK_API_KEY", None)
+        os.environ.pop("EASYRAG_KG_API_KEY", None)
+        try:
+            self.assertEqual(get_query_api_key(), "query-key")
+            self.assertEqual(get_embedding_api_key(), "dashscope-key")
+            self.assertEqual(get_rerank_api_key(), "dashscope-key")
+            self.assertEqual(get_kg_api_key(), "shared-key")
+        finally:
+            if old_openai is None:
+                os.environ.pop("OPENAI_API_KEY", None)
+            else:
+                os.environ["OPENAI_API_KEY"] = old_openai
+            if old_dashscope is None:
+                os.environ.pop("DASHSCOPE_API_KEY", None)
+            else:
+                os.environ["DASHSCOPE_API_KEY"] = old_dashscope
+            if old_query is None:
+                os.environ.pop("EASYRAG_QUERY_API_KEY", None)
+            else:
+                os.environ["EASYRAG_QUERY_API_KEY"] = old_query
+            if old_embed is None:
+                os.environ.pop("EASYRAG_EMBEDDING_API_KEY", None)
+            else:
+                os.environ["EASYRAG_EMBEDDING_API_KEY"] = old_embed
+            if old_rerank is None:
+                os.environ.pop("EASYRAG_RERANK_API_KEY", None)
+            else:
+                os.environ["EASYRAG_RERANK_API_KEY"] = old_rerank
+            if old_kg is None:
+                os.environ.pop("EASYRAG_KG_API_KEY", None)
+            else:
+                os.environ["EASYRAG_KG_API_KEY"] = old_kg
+
+    def test_local_hash_embedding_counts_as_embedding_config(self) -> None:
+        old_model = os.environ.get("EASYRAG_EMBEDDING_MODEL_NAME")
+        old_openai = os.environ.get("OPENAI_API_KEY")
+        os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "local-hash-64"
+        os.environ.pop("OPENAI_API_KEY", None)
+        try:
+            self.assertTrue(has_embedding_model_config())
+        finally:
+            if old_model is None:
+                os.environ.pop("EASYRAG_EMBEDDING_MODEL_NAME", None)
+            else:
+                os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = old_model
+            if old_openai is None:
+                os.environ.pop("OPENAI_API_KEY", None)
+            else:
+                os.environ["OPENAI_API_KEY"] = old_openai
 
     def test_kg_entity_types_can_be_configured(self) -> None:
         old_value = os.environ.get("EASYRAG_KG_ENTITY_TYPES")

@@ -247,6 +247,12 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
                     self.assertIn("rewritten_query", result.metadata)
                     self.assertIn("expanded_queries", result.metadata)
                     self.assertIn("retrieval_queries", result.metadata)
+                    self.assertFalse(result.metadata["fallback_used"], mode)
+                    self.assertIn(
+                        result.metadata["vector_backend"],
+                        {"hnsw_embedding", "dense_embedding"},
+                    )
+                    self.assertTrue(result.metadata["vector_backends"])
 
                 aggregate = _run(rag.get_stats())
                 self.assertGreaterEqual(aggregate["graph_nodes"], 4)
@@ -449,6 +455,7 @@ class EasyRAGLifecycleTestCase(unittest.TestCase):
 
             self.assertTrue(result.citations)
             self.assertEqual(result.metadata["vector_backend"], "fallback_token")
+            self.assertTrue(result.metadata["fallback_used"])
 
     def test_delete_documents_removes_all_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

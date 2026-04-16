@@ -12,6 +12,11 @@ from easyrag.rag.retrieval.hydration import (
     detect_vector_backend,
     hydrate_records,
 )
+from easyrag.rag.retrieval.provenance import (
+    collect_vector_backends,
+    query_used_token_fallback,
+    select_primary_vector_backend,
+)
 from easyrag.rag.retrieval.query_modes import run_variant_queries
 from easyrag.rag.types import QueryParam, QueryResult
 
@@ -81,6 +86,7 @@ async def execute_query(rag: "EasyRAG", query: str, param: QueryParam) -> QueryR
         global_hits,
         local_entities,
         relation_hits,
+        backend_groups,
     ) = await run_variant_queries(
         rag,
         prepared.retrieval_queries,
@@ -136,6 +142,16 @@ async def execute_query(rag: "EasyRAG", query: str, param: QueryParam) -> QueryR
     hydrated = trim_records(hydrated, param.chunk_top_k)
     chunks = await chunks_to_documents(hydrated)
     citations = build_citations(chunks)
+    observed_vector_backends = collect_vector_backends(
+        *backend_groups["chunk"],
+        *backend_groups["summary"],
+        *backend_groups["entity"],
+        *backend_groups["relation"],
+    )
+    query_vector_backend = select_primary_vector_backend(
+        observed_vector_backends,
+        default=rag.vector_storage.get_backend_name(),
+    )
     hit_chunk_strategies = sorted(
         {
             str(document.metadata.get("chunk_strategy", "unknown"))
@@ -172,8 +188,10 @@ async def execute_query(rag: "EasyRAG", query: str, param: QueryParam) -> QueryR
             "retrieval_queries": prepared.retrieval_queries,
             "rerank_applied": rerank_applied,
             "chunk_strategies": hit_chunk_strategies,
-            "vector_backend": detect_vector_backend(hydrated),
-            "fallback_used": detect_vector_backend(hydrated) == "fallback_token",
+            "vector_backend": query_vector_backend,
+            "vector_backends": sorted(observed_vector_backends),
+            "fallback_used": query_used_token_fallback(observed_vector_backends),
+            "hydrated_vector_backend": detect_vector_backend(hydrated),
             "filters_applied": {
                 "metadata_filters": dict(param.metadata_filters or {}),
                 "min_score": param.min_score,

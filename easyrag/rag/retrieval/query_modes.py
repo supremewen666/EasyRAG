@@ -22,7 +22,7 @@ async def naive_query(
 
 async def local_query(
     rag: "EasyRAG", query: str, param: QueryParam
-) -> tuple[list[dict[str, object]], list[str]]:
+) -> tuple[list[dict[str, object]], list[str], dict[str, list[dict[str, object]]]]:
     """Retrieve chunks related to query-time entities plus dense backfill."""
 
     extracted_entities = extract_entity_candidates(query, {"title": query, "path": ""})
@@ -55,12 +55,16 @@ async def local_query(
         "chunk", query, param.chunk_top_k
     )
     selected = merge_ranked_records([(1.0, neighbors), (0.6, dense_backfill)])
-    return selected, entities
+    return selected, entities, {"entity": entity_hits, "chunk": dense_backfill}
 
 
 async def global_query(
     rag: "EasyRAG", query: str, param: QueryParam
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+) -> tuple[
+    list[dict[str, object]],
+    list[dict[str, object]],
+    dict[str, list[dict[str, object]]],
+]:
     """Retrieve broad context from summaries, central entities, and dense backfill."""
 
     summary_hits = await rag.vector_storage.similarity_search(
@@ -80,7 +84,10 @@ async def global_query(
     merged = merge_ranked_records(
         [(1.0, summary_hits), (0.7, central_neighbors), (0.4, dense_backfill)]
     )
-    return merged, central_entities
+    return merged, central_entities, {
+        "summary": summary_hits,
+        "chunk": dense_backfill,
+    }
 
 
 async def run_variant_queries(
@@ -93,6 +100,7 @@ async def run_variant_queries(
     list[dict[str, object]],
     list[str],
     list[dict[str, object]],
+    dict[str, list[list[dict[str, object]]]],
 ]:
     """Run naive/local/global retrieval for each prepared query variant."""
 
@@ -100,20 +108,36 @@ async def run_variant_queries(
     local_groups: list[list[dict[str, object]]] = []
     global_groups: list[list[dict[str, object]]] = []
     relation_groups: list[list[dict[str, object]]] = []
+    backend_groups: dict[str, list[list[dict[str, object]]]] = {
+        "chunk": [],
+        "summary": [],
+        "entity": [],
+        "relation": [],
+    }
     entities: list[str] = []
     central_entities: list[dict[str, object]] = []
 
     for retrieval_query in retrieval_queries:
-        naive_groups.append(await naive_query(rag, retrieval_query, param))
-        local_hits, local_entities = await local_query(rag, retrieval_query, param)
-        global_hits, global_central = await global_query(rag, retrieval_query, param)
+        naive_hits = await naive_query(rag, retrieval_query, param)
+        naive_groups.append(naive_hits)
+        backend_groups["chunk"].append(naive_hits)
+        local_hits, local_entities, local_backend_groups = await local_query(
+            rag, retrieval_query, param
+        )
+        global_hits, global_central, global_backend_groups = await global_query(
+            rag, retrieval_query, param
+        )
         local_groups.append(local_hits)
         global_groups.append(global_hits)
-        relation_groups.append(
-            await rag.vector_storage.similarity_search(
-                "relation", retrieval_query, param.top_k
-            )
+        relation_hits = await rag.vector_storage.similarity_search(
+            "relation", retrieval_query, param.top_k
         )
+        relation_groups.append(relation_hits)
+        backend_groups["relation"].append(relation_hits)
+        backend_groups["entity"].append(local_backend_groups["entity"])
+        backend_groups["chunk"].append(local_backend_groups["chunk"])
+        backend_groups["summary"].append(global_backend_groups["summary"])
+        backend_groups["chunk"].append(global_backend_groups["chunk"])
         entities.extend(local_entities)
         if not central_entities:
             central_entities = global_central
@@ -124,4 +148,5 @@ async def run_variant_queries(
         rrf_fuse(global_groups),
         dedupe_strings(entities),
         rrf_fuse(relation_groups),
+        backend_groups,
     )

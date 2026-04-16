@@ -22,6 +22,7 @@ def generate_answer(
 
     selected_citations = select_answer_citations(
         query_result.citations,
+        question=question,
         max_items=max(0, answer_param.max_citations),
         max_chars=max(0, answer_param.max_context_chars),
     )

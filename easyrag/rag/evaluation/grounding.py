@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from easyrag.rag.generation.output import _ADDITIONAL_CONTEXT_HEADER, split_answer_sections
 from easyrag.rag.generation.selection import (
     has_citation_marker,
     normalize_citation_snippet,
@@ -11,6 +12,7 @@ from easyrag.rag.generation.selection import (
 from easyrag.rag.utils import tokenize
 
 _SUPPORTING_CITATION_LINE = re.compile(r"^\[\d+\]\s+")
+_INLINE_CITATION_MARKER = re.compile(r"\[\d+\]")
 
 
 def answer_abstained(answer: str) -> bool:
@@ -34,17 +36,22 @@ def split_answer_sentences(answer: str) -> list[str]:
     """Split answer text into evaluation-ready sentences."""
 
     lines = []
-    for raw_line in answer.splitlines():
+    grounded_answer, _ = split_answer_sections(answer)
+    for raw_line in grounded_answer.splitlines():
         line = raw_line.strip()
         if (
             not line
             or line == "Supporting citations:"
+            or line == _ADDITIONAL_CONTEXT_HEADER
             or _SUPPORTING_CITATION_LINE.match(line)
         ):
             continue
         lines.append(line)
     parts: list[str] = []
     for line in lines:
+        line = _INLINE_CITATION_MARKER.sub("", line).strip()
+        if not line:
+            continue
         parts.extend(
             part.strip() for part in re.split(r"(?<=[.!?])\s+", line) if part.strip()
         )

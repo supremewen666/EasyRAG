@@ -848,6 +848,7 @@ class QdrantVectorStorage(BaseVectorStorage):
                 "metadata": dict(point_payload.get("metadata", {})),
                 "score": float(item.get("score", 0.0)),
                 "vector_backend": "qdrant",
+                "vector_backends": ["qdrant"],
             }
             results.append(candidate)
         if results:

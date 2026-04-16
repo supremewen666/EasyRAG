@@ -74,6 +74,7 @@ class AnswerParam:
     max_citations: int = 3
     max_context_chars: int = 360
     style: str = "citation_aware"
+    evidence_mode: str = "grounded_plus_prior"
     require_citations: bool = True
     allow_abstain: bool = True
 

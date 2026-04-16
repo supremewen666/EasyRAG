@@ -50,7 +50,50 @@ def get_kg_model_name() -> str:
 def get_openai_api_key() -> str:
     """Return the API key used by the OpenAI-compatible chat client."""
 
-    return os.getenv("OPENAI_API_KEY", "")
+    return os.getenv("OPENAI_API_KEY", "").strip()
+
+
+def _get_role_api_key(env_name: str, *, fallback_names: tuple[str, ...] = ()) -> str:
+    """Return a role-specific API key with shared and vendor fallbacks."""
+
+    value = os.getenv(env_name, "").strip()
+    if value:
+        return value
+    for fallback_name in fallback_names:
+        value = os.getenv(fallback_name, "").strip()
+        if value:
+            return value
+    return get_openai_api_key()
+
+
+def get_query_api_key() -> str:
+    """Return the API key used for query rewriting and MQE generation."""
+
+    return _get_role_api_key("EASYRAG_QUERY_API_KEY")
+
+
+def get_embedding_api_key() -> str:
+    """Return the API key used for embedding generation."""
+
+    return _get_role_api_key(
+        "EASYRAG_EMBEDDING_API_KEY",
+        fallback_names=("DASHSCOPE_API_KEY",),
+    )
+
+
+def get_rerank_api_key() -> str:
+    """Return the API key used for reranking."""
+
+    return _get_role_api_key(
+        "EASYRAG_RERANK_API_KEY",
+        fallback_names=("DASHSCOPE_API_KEY",),
+    )
+
+
+def get_kg_api_key() -> str:
+    """Return the API key used for KG extraction."""
+
+    return _get_role_api_key("EASYRAG_KG_API_KEY")
 
 
 def get_openai_base_url() -> str | None:
@@ -102,7 +145,44 @@ def get_kg_entity_types() -> tuple[str, ...]:
     return tuple(part.strip() for part in raw_value.split(",") if part.strip())
 
 
-def has_openai_compatible_config() -> bool:
-    """Return whether OpenAI-compatible model calls are configured."""
+def _has_local_embedding_config() -> bool:
+    """Return whether embeddings are configured to use the local hash backend."""
 
-    return bool(get_openai_api_key().strip())
+    return get_embedding_model_name().strip().lower().startswith("local-hash")
+
+
+def has_query_model_config() -> bool:
+    """Return whether query-model calls are configured."""
+
+    return bool(get_query_api_key())
+
+
+def has_embedding_model_config() -> bool:
+    """Return whether embedding generation is configured."""
+
+    return _has_local_embedding_config() or bool(get_embedding_api_key())
+
+
+def has_rerank_model_config() -> bool:
+    """Return whether reranking is configured."""
+
+    return bool(get_rerank_api_key())
+
+
+def has_kg_model_config() -> bool:
+    """Return whether KG extraction model calls are configured."""
+
+    return bool(get_kg_api_key())
+
+
+def has_openai_compatible_config() -> bool:
+    """Return whether any model-backed behavior is configured."""
+
+    return any(
+        (
+            has_query_model_config(),
+            has_embedding_model_config(),
+            has_rerank_model_config(),
+            has_kg_model_config(),
+        )
+    )

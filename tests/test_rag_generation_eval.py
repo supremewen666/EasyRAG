@@ -7,6 +7,7 @@ import tempfile
 import unittest
 
 from easyrag.rag import AnswerParam, EasyRAG, EvalCase, QueryParam
+from easyrag.rag.evaluation.grounding import sentence_support_ratio
 from easyrag.rag.evaluation import evaluate_answers, evaluate_retrieval
 
 _KEYWORDS = [
@@ -85,11 +86,13 @@ class GenerationPipelineTestCase(unittest.TestCase):
         self.assertIn("[1]", answer.answer)
         self.assertTrue(answer.context_block)
         self.assertTrue(answer.metadata["fallback_used"])
+        self.assertEqual(answer.metadata["evidence_support"], "supported")
         self.assertEqual(
             answer.metadata["selected_citation_count"], len(answer.selected_citations)
         )
+        self.assertFalse(answer.metadata["additional_context_present"])
 
-    def test_aanswer_abstains_when_no_evidence_is_found(self) -> None:
+    def test_aanswer_abstains_when_only_weak_evidence_is_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             rag = EasyRAG(
                 working_dir=tmp_dir,
@@ -121,6 +124,94 @@ class GenerationPipelineTestCase(unittest.TestCase):
         self.assertIn("cannot answer", answer.answer.lower())
         self.assertTrue(answer.metadata["abstained"])
         self.assertTrue(answer.metadata["insufficient_evidence"])
+        self.assertEqual(answer.metadata["evidence_support"], "weak")
+
+    def test_grounded_only_abstains_on_weak_evidence_without_calling_model(self) -> None:
+        def _answer_model(_: str, **__: object) -> str:
+            raise AssertionError("grounded_only should abstain before calling the model")
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="grounded-only",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+                answer_model_func=_answer_model,
+            )
+            _run(rag.initialize_storages())
+            try:
+                _run(
+                    rag.ainsert(
+                        "# Intro\nEasyRAG organizes documents and metadata for repository study.\n",
+                        ids=["doc::intro"],
+                        file_paths=["docs/intro.md"],
+                    )
+                )
+                answer = _run(
+                    rag.aanswer(
+                        "How does EasyRAG handle retrieval?",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                        AnswerParam(evidence_mode="grounded_only"),
+                    )
+                )
+            finally:
+                _run(rag.finalize_storages())
+
+        self.assertIn("cannot answer", answer.answer.lower())
+        self.assertTrue(answer.metadata["abstained"])
+        self.assertEqual(answer.metadata["evidence_support"], "weak")
+        self.assertFalse(answer.metadata["answer_model_used"])
+
+    def test_grounded_plus_prior_calls_model_when_support_is_weak(self) -> None:
+        def _answer_model(prompt: str, **_: object) -> str:
+            self.assertIn("Additional context (not directly supported by retrieved evidence):", prompt)
+            return (
+                "Grounded answer from the retrieved evidence [1]\n\n"
+                "Additional context (not directly supported by retrieved evidence):\n"
+                "This pattern usually benefits from stronger retrieval-specific docs."
+            )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            rag = EasyRAG(
+                working_dir=tmp_dir,
+                workspace="grounded-plus-prior",
+                embedding_func=_stub_embedding,
+                query_model_func=_stub_query_model,
+                answer_model_func=_answer_model,
+            )
+            _run(rag.initialize_storages())
+            try:
+                _run(
+                    rag.ainsert(
+                        "# Intro\nEasyRAG organizes documents and metadata for repository study.\n",
+                        ids=["doc::intro"],
+                        file_paths=["docs/intro.md"],
+                    )
+                )
+                answer = _run(
+                    rag.aanswer(
+                        "How does EasyRAG handle retrieval?",
+                        QueryParam(
+                            mode="naive", rewrite_enabled=False, mqe_enabled=False
+                        ),
+                        AnswerParam(),
+                    )
+                )
+            finally:
+                _run(rag.finalize_storages())
+
+        self.assertEqual(answer.answer, "Grounded answer from the retrieved evidence [1]")
+        self.assertTrue(answer.metadata["answer_model_used"])
+        self.assertFalse(answer.metadata["fallback_used"])
+        self.assertEqual(answer.metadata["evidence_support"], "weak")
+        self.assertTrue(answer.metadata["prior_knowledge_used"])
+        self.assertTrue(answer.metadata["additional_context_present"])
+        self.assertEqual(
+            answer.metadata["additional_context"],
+            "This pattern usually benefits from stronger retrieval-specific docs.",
+        )
 
     def test_explicit_answer_model_func_is_used(self) -> None:
         def _answer_model(prompt: str, **_: object) -> str:
@@ -159,6 +250,20 @@ class GenerationPipelineTestCase(unittest.TestCase):
         self.assertEqual(answer.answer, "Structured grounded answer [1]")
         self.assertTrue(answer.metadata["answer_model_used"])
         self.assertFalse(answer.metadata["fallback_used"])
+        self.assertEqual(answer.metadata["evidence_support"], "supported")
+        self.assertFalse(answer.metadata["additional_context_present"])
+
+    def test_additional_context_is_ignored_by_grounding_metric(self) -> None:
+        answer = (
+            "EasyRAG uses grounded retrieval and query rewrite. [1]\n\n"
+            "Additional context (not directly supported by retrieved evidence):\n"
+            "Teams often combine reranking with query planning."
+        )
+        score = sentence_support_ratio(
+            answer,
+            ["EasyRAG uses grounded retrieval and query rewrite."],
+        )
+        self.assertEqual(score, 1.0)
 
 
 class RetrievalFilterAndQualityTestCase(unittest.TestCase):

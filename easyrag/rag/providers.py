@@ -3,20 +3,25 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import mimetypes
+import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from easyrag.config import (
+    get_embedding_api_key,
     get_embedding_base_url,
     get_embedding_model_name,
+    get_kg_api_key,
     get_kg_base_url,
     get_kg_model_name,
-    get_openai_api_key,
+    get_query_api_key,
     get_query_base_url,
     get_query_model_name,
+    get_rerank_api_key,
     get_rerank_base_url,
     get_rerank_model_name,
     has_openai_compatible_config,
@@ -31,6 +36,8 @@ try:
     from openai import OpenAI
 except ImportError:  # pragma: no cover - optional dependency path.
     OpenAI = None
+
+_TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
 
 
 def _retryable_exception_types() -> tuple[type[BaseException], ...]:
@@ -93,14 +100,13 @@ def can_use_openai_compatible_models() -> bool:
     return bool(has_openai_compatible_config())
 
 
-def _require_client(base_url: str | None) -> Any:
+def _require_client(base_url: str | None, *, api_key: str, api_key_name: str) -> Any:
     """Build an OpenAI-compatible client or raise a helpful error."""
 
     if OpenAI is None:
         raise RuntimeError("openai package is not installed.")
-    api_key = get_openai_api_key().strip()
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not configured.")
+        raise RuntimeError(f"{api_key_name} is not configured.")
     return OpenAI(api_key=api_key, base_url=base_url)
 
 
@@ -149,6 +155,41 @@ def _looks_like_dashscope_text_rerank_model(model_name: str) -> bool:
     return normalized.startswith("qwen3-rerank") or normalized.startswith(
         "gte-rerank-v2"
     )
+
+
+def _get_local_hash_dimension(model_name: str) -> int | None:
+    """Return the configured local hash embedding dimension, if any."""
+
+    normalized = model_name.strip().lower()
+    if normalized == "local-hash":
+        return 128
+    if normalized.startswith("local-hash-"):
+        try:
+            dimension = int(normalized.rsplit("-", 1)[-1])
+        except ValueError:
+            return None
+        if dimension > 0:
+            return dimension
+    return None
+
+
+def _build_local_hash_embeddings(
+    texts: list[Any], *, dimension: int
+) -> list[list[float]]:
+    """Build deterministic local dense vectors without external providers."""
+
+    vectors: list[list[float]] = []
+    for item in texts:
+        text = str(item.get("text", "")) if isinstance(item, dict) else str(item)
+        tokens = _TOKEN_PATTERN.findall(text.lower())
+        vector = [0.0] * dimension
+        for token in tokens:
+            digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
+            hashed = int.from_bytes(digest, "big")
+            vector[hashed % dimension] += -1.0 if ((hashed >> 8) & 1) else 1.0
+        vector.append(float(len(tokens)))
+        vectors.append(vector)
+    return vectors
 
 
 def _path_to_data_url(path: str) -> str | None:
@@ -267,7 +308,11 @@ def default_query_model_func(
 ) -> str | list[str]:
     """Run query rewrite or MQE generation through an OpenAI-compatible chat model."""
 
-    client = _require_client(get_query_base_url())
+    client = _require_client(
+        get_query_base_url(),
+        api_key=get_query_api_key(),
+        api_key_name="EASYRAG_QUERY_API_KEY or OPENAI_API_KEY",
+    )
     if task == "rewrite":
         system_prompt = (
             "You rewrite repository-search queries for retrieval. "
@@ -309,11 +354,20 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
     """Generate dense embeddings through OpenAI-compatible or DashScope APIs."""
 
     model_name = get_embedding_model_name()
+    local_hash_dimension = _get_local_hash_dimension(model_name)
+    if local_hash_dimension is not None:
+        return _build_local_hash_embeddings(texts, dimension=local_hash_dimension)
+
     base_url = get_embedding_base_url()
+    api_key = get_embedding_api_key()
     if _looks_like_vl_embedding_model(model_name):
         if not _is_dashscope_url(base_url):
             raise RuntimeError(
                 "Qwen3-VL-Embedding requires a DashScope embedding base URL."
+            )
+        if not api_key:
+            raise RuntimeError(
+                "EASYRAG_EMBEDDING_API_KEY, DASHSCOPE_API_KEY, or OPENAI_API_KEY is not configured."
             )
         client = _require_httpx()
         response = _call_with_retry(
@@ -326,7 +380,7 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
                     },
                 },
                 headers={
-                    "Authorization": f"Bearer {get_openai_api_key().strip()}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
                 timeout=30.0,
@@ -340,7 +394,11 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
             raise RuntimeError("Embedding endpoint returned no usable vectors.")
         return values
 
-    client = _require_client(base_url)
+    client = _require_client(
+        base_url,
+        api_key=api_key,
+        api_key_name="EASYRAG_EMBEDDING_API_KEY or OPENAI_API_KEY",
+    )
     response = _call_with_retry(
         lambda: client.embeddings.create(model=model_name, input=texts)
     )
@@ -357,7 +415,11 @@ def default_kg_model_func(
 ) -> dict[str, list[dict[str, str]]]:
     """Extract entities and relations as structured JSON through a chat model."""
 
-    client = _require_client(get_kg_base_url())
+    client = _require_client(
+        get_kg_base_url(),
+        api_key=get_kg_api_key(),
+        api_key_name="EASYRAG_KG_API_KEY or OPENAI_API_KEY",
+    )
     allowed_types = ", ".join(entity_types)
     page_context = ""
     if metadata:
@@ -404,9 +466,11 @@ def default_reranker_func(
     """Rerank retrieval candidates through OpenAI-compatible or DashScope APIs."""
 
     client = _require_httpx()
-    api_key = get_openai_api_key().strip()
+    api_key = get_rerank_api_key()
     if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is not configured.")
+        raise RuntimeError(
+            "EASYRAG_RERANK_API_KEY, DASHSCOPE_API_KEY, or OPENAI_API_KEY is not configured."
+        )
     base_url = get_rerank_base_url()
     if not base_url:
         raise RuntimeError("No rerank base URL is configured.")

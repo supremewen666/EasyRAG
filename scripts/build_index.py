@@ -3,10 +3,29 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _reexec_with_project_venv() -> None:
+    """Prefer the repository virtualenv when the script is launched globally."""
+
+    project_python = PROJECT_ROOT / ".venv" / "bin" / "python"
+    if (
+        sys.prefix != sys.base_prefix
+        or not project_python.exists()
+        or os.getenv("EASYRAG_SKIP_VENV_REEXEC", "").strip() == "1"
+    ):
+        return
+    os.execv(str(project_python), [str(project_python), __file__, *sys.argv[1:]])
+
+
+_reexec_with_project_venv()
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -15,6 +34,9 @@ from easyrag.rag import EasyRAG  # noqa: E402
 from easyrag.rag.indexing import rebuild_document_index  # noqa: E402
 from easyrag.rag.indexing.maintenance import write_legacy_snapshot  # noqa: E402
 from easyrag.support.async_utils import run_sync  # noqa: E402
+
+if TYPE_CHECKING:
+    from easyrag.rag.indexing.maintenance import RAGFactory
 
 
 def _run_async(awaitable: object) -> object:
@@ -69,52 +91,77 @@ def _print_summary(
     print(f"vector_backend={aggregate.get('vector_backend', 'unknown')}")
 
 
-def main(argv: list[str] | None = None) -> None:
-    """Build, rebuild, update, or delete EasyRAG document index entries."""
+def build_repository_index(
+    *,
+    action: str = "rebuild",
+    targeted_doc_ids: list[str] | None = None,
+    repo_root: str | Path | None = None,
+    working_dir: str | Path | None = None,
+    workspace: str | None = None,
+    index_path: str | Path | None = None,
+    rag_factory: "RAGFactory | None" = None,
+) -> dict[str, object]:
+    """Build or maintain one repository index and return the resulting summary."""
 
-    args = _parse_args(argv)
-    action = "rebuild" if args.action == "update" else args.action
-    targeted_doc_ids = list(
-        dict.fromkeys(
-            str(doc_id).strip() for doc_id in args.doc_ids if str(doc_id).strip()
+    root = Path(repo_root).resolve() if repo_root is not None else get_repo_root()
+    working_dir_path = (
+        Path(working_dir).resolve()
+        if working_dir is not None
+        else get_rag_working_dir()
+    )
+    workspace_name = workspace or get_rag_workspace()
+    targeted = list(dict.fromkeys(targeted_doc_ids or []))
+    rag_builder = rag_factory or (
+        lambda resolved_working_dir, resolved_workspace: EasyRAG(
+            working_dir=resolved_working_dir, workspace=resolved_workspace
         )
     )
 
     if action == "delete":
-        rag = EasyRAG(working_dir=get_rag_working_dir(), workspace=get_rag_workspace())
+        rag = rag_builder(working_dir_path, workspace_name)
         _run_async(rag.initialize_storages())
         try:
-            stats = _run_async(rag.adelete_documents(targeted_doc_ids))
+            stats = _run_async(rag.adelete_documents(targeted))
             aggregate = _run_async(rag.get_stats())
         finally:
             _run_async(rag.finalize_storages())
-        if targeted_doc_ids:
+        if targeted:
             remaining_documents = [
                 document
-                for document in EasyRAG.load_repo_documents(get_repo_root())
-                if str(document.metadata.get("doc_id", "")).strip()
-                not in set(targeted_doc_ids)
+                for document in EasyRAG.load_repo_documents(root)
+                if str(document.metadata.get("doc_id", "")).strip() not in set(targeted)
             ]
-            write_legacy_snapshot(remaining_documents)
-        _print_summary(
-            rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids
-        )
-        return
+            write_legacy_snapshot(remaining_documents, index_path=index_path)
+        return {
+            "repo_root": root,
+            "workspace": workspace_name,
+            "working_dir": working_dir_path / workspace_name,
+            "action": action,
+            "targeted_doc_ids": targeted,
+            "stats": stats,
+            "aggregate": aggregate,
+        }
 
-    rebuild_document_index(get_repo_root(), doc_ids=targeted_doc_ids or None)
-    rag = EasyRAG(working_dir=get_rag_working_dir(), workspace=get_rag_workspace())
+    rebuild_document_index(
+        root,
+        doc_ids=targeted or None,
+        working_dir=working_dir_path,
+        workspace=workspace_name,
+        index_path=index_path,
+        rag_factory=rag_factory,
+    )
+    rag = rag_builder(working_dir_path, workspace_name)
     _run_async(rag.initialize_storages())
     try:
         aggregate = _run_async(rag.get_stats())
-        current_documents = EasyRAG.load_repo_documents(get_repo_root())
+        current_documents = EasyRAG.load_repo_documents(root)
         filtered_documents = (
             [
                 document
                 for document in current_documents
-                if str(document.metadata.get("doc_id", "")).strip()
-                in set(targeted_doc_ids)
+                if str(document.metadata.get("doc_id", "")).strip() in set(targeted)
             ]
-            if targeted_doc_ids
+            if targeted
             else current_documents
         )
         stats = {
@@ -129,8 +176,43 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         _run_async(rag.finalize_storages())
 
+    return {
+        "repo_root": root,
+        "workspace": workspace_name,
+        "working_dir": working_dir_path / workspace_name,
+        "action": action,
+        "targeted_doc_ids": targeted,
+        "stats": stats,
+        "aggregate": aggregate,
+    }
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Build, rebuild, update, or delete EasyRAG document index entries."""
+
+    args = _parse_args(argv)
+    action = "rebuild" if args.action == "update" else args.action
+    targeted_doc_ids = list(
+        dict.fromkeys(
+            str(doc_id).strip() for doc_id in args.doc_ids if str(doc_id).strip()
+        )
+    )
+
+    summary = build_repository_index(
+        action=action,
+        targeted_doc_ids=targeted_doc_ids,
+        repo_root=get_repo_root(),
+        working_dir=get_rag_working_dir(),
+        workspace=get_rag_workspace(),
+    )
+    rag = EasyRAG(working_dir=get_rag_working_dir(), workspace=get_rag_workspace())
+
     _print_summary(
-        rag, stats, aggregate, action=action, targeted_doc_ids=targeted_doc_ids
+        rag,
+        dict(summary["stats"]),
+        dict(summary["aggregate"]),
+        action=action,
+        targeted_doc_ids=targeted_doc_ids,
     )
 
 

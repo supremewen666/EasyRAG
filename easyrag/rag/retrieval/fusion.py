@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from easyrag.rag.types import QueryParam
+from easyrag.rag.retrieval.provenance import (
+    merge_record_vector_backends,
+    normalize_vector_backends,
+)
 
 
 def merge_ranked_records(
@@ -14,11 +18,10 @@ def merge_ranked_records(
     for weight, records in rank_groups:
         for position, record in enumerate(records):
             record_id = str(record["id"])
-            candidate = merged.setdefault(record_id, dict(record))
+            candidate = merged.setdefault(record_id, normalize_vector_backends(dict(record)))
             score = float(record.get("score", len(records) - position))
             candidate["score"] = float(candidate.get("score", 0.0)) + score * weight
-            if "vector_backend" not in candidate and "vector_backend" in record:
-                candidate["vector_backend"] = record["vector_backend"]
+            merge_record_vector_backends(candidate, record)
     return sorted(
         merged.values(), key=lambda item: float(item.get("score", 0.0)), reverse=True
     )
@@ -33,10 +36,9 @@ def rrf_fuse(
     for records in record_groups:
         for rank, record in enumerate(records, start=1):
             record_id = str(record["id"])
-            candidate = merged.setdefault(record_id, dict(record))
+            candidate = merged.setdefault(record_id, normalize_vector_backends(dict(record)))
             candidate["score"] = float(candidate.get("score", 0.0)) + 1.0 / (k + rank)
-            if "vector_backend" not in candidate and "vector_backend" in record:
-                candidate["vector_backend"] = record["vector_backend"]
+            merge_record_vector_backends(candidate, record)
     return sorted(
         merged.values(), key=lambda item: float(item.get("score", 0.0)), reverse=True
     )
