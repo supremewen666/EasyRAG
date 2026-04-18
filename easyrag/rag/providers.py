@@ -38,6 +38,7 @@ except ImportError:  # pragma: no cover - optional dependency path.
     OpenAI = None
 
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+")
+_DASHSCOPE_VL_EMBEDDING_MAX_BATCH_SIZE = 20
 
 
 def _retryable_exception_types() -> tuple[type[BaseException], ...]:
@@ -92,6 +93,16 @@ def _call_with_retry(operation: Any, *, attempts: int = 3) -> Any:
     if last_error is not None:
         raise last_error
     raise RuntimeError("Provider call failed before execution.")
+
+
+def _batched(values: list[Any], batch_size: int) -> list[list[Any]]:
+    """Split one list into stable batches."""
+
+    normalized_batch_size = max(1, int(batch_size))
+    return [
+        values[index : index + normalized_batch_size]
+        for index in range(0, len(values), normalized_batch_size)
+    ]
 
 
 def can_use_openai_compatible_models() -> bool:
@@ -370,28 +381,33 @@ def default_embedding_func(texts: list[Any]) -> list[list[float]]:
                 "EASYRAG_EMBEDDING_API_KEY, DASHSCOPE_API_KEY, or OPENAI_API_KEY is not configured."
             )
         client = _require_httpx()
-        response = _call_with_retry(
-            lambda: client.post(
-                _get_dashscope_multimodal_embedding_url(base_url),
-                json={
-                    "model": model_name,
-                    "input": {
-                        "contents": [_build_multimodal_content(text) for text in texts]
+        values: list[list[float]] = []
+        for batch in _batched(texts, _DASHSCOPE_VL_EMBEDDING_MAX_BATCH_SIZE):
+            response = _call_with_retry(
+                lambda batch=batch: client.post(
+                    _get_dashscope_multimodal_embedding_url(base_url),
+                    json={
+                        "model": model_name,
+                        "input": {
+                            "contents": [
+                                _build_multimodal_content(text) for text in batch
+                            ]
+                        },
                     },
-                },
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                timeout=30.0,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=30.0,
+                )
             )
-        )
-        response.raise_for_status()
-        body = response.json()
-        embeddings = body.get("output", {}).get("embeddings") or []
-        values = [list(item.get("embedding") or []) for item in embeddings]
-        if len(values) != len(texts) or any(not value for value in values):
-            raise RuntimeError("Embedding endpoint returned no usable vectors.")
+            response.raise_for_status()
+            body = response.json()
+            embeddings = body.get("output", {}).get("embeddings") or []
+            batch_values = [list(item.get("embedding") or []) for item in embeddings]
+            if len(batch_values) != len(batch) or any(not value for value in batch_values):
+                raise RuntimeError("Embedding endpoint returned no usable vectors.")
+            values.extend(batch_values)
         return values
 
     client = _require_client(

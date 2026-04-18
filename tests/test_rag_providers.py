@@ -35,7 +35,8 @@ class _FakeHTTPX:
                 "timeout": timeout,
             }
         )
-        return _FakeResponse(self._response_body)
+        body = self._response_body(json) if callable(self._response_body) else self._response_body
+        return _FakeResponse(body)
 
 
 class _FakeEmbeddingsAPI:
@@ -112,6 +113,32 @@ class ProviderAdapterTestCase(unittest.TestCase):
                 "data:image/png;base64,"
             )
         )
+
+    def test_dashscope_vl_embedding_batches_large_requests(self) -> None:
+        os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "Qwen3-VL-Embedding-4B"
+        os.environ["EASYRAG_EMBEDDING_BASE_URL"] = "https://dashscope.aliyuncs.com"
+        os.environ["EASYRAG_EMBEDDING_API_KEY"] = "dashscope-key"
+
+        def _response_body(payload):
+            embeddings = []
+            for content in payload["input"]["contents"]:
+                text = str(content["text"])
+                index = int(text.rsplit("-", 1)[-1])
+                embeddings.append({"embedding": [float(index), float(index) + 0.5]})
+            return {"output": {"embeddings": embeddings}}
+
+        fake_httpx = _FakeHTTPX(_response_body)
+        with patch.object(providers, "httpx", fake_httpx):
+            vectors = providers.default_embedding_func(
+                [f"sample-{index}" for index in range(24)]
+            )
+
+        self.assertEqual(len(vectors), 24)
+        self.assertEqual(vectors[0], [0.0, 0.5])
+        self.assertEqual(vectors[-1], [23.0, 23.5])
+        self.assertEqual(len(fake_httpx.calls), 2)
+        self.assertEqual(len(fake_httpx.calls[0]["json"]["input"]["contents"]), 20)
+        self.assertEqual(len(fake_httpx.calls[1]["json"]["input"]["contents"]), 4)
 
     def test_openai_compatible_embedding_path_still_works(self) -> None:
         os.environ["EASYRAG_EMBEDDING_MODEL_NAME"] = "text-embedding-v4"

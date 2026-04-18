@@ -22,6 +22,7 @@ from easyrag.config import (
     get_rerank_base_url,
     get_rerank_model_name,
     has_embedding_model_config,
+    has_kg_model_config,
 )
 
 
@@ -187,6 +188,40 @@ class ConfigTestCase(unittest.TestCase):
                 os.environ.pop("OPENAI_API_KEY", None)
             else:
                 os.environ["OPENAI_API_KEY"] = old_openai
+
+    def test_kg_model_config_requires_explicit_opt_in(self) -> None:
+        old_openai = os.environ.get("OPENAI_API_KEY")
+        old_kg_key = os.environ.get("EASYRAG_KG_API_KEY")
+        old_kg_model = os.environ.get("EASYRAG_KG_MODEL_NAME")
+        old_kg_base_url = os.environ.get("EASYRAG_KG_BASE_URL")
+        os.environ["OPENAI_API_KEY"] = "shared-key"
+        os.environ.pop("EASYRAG_KG_API_KEY", None)
+        os.environ.pop("EASYRAG_KG_MODEL_NAME", None)
+        os.environ.pop("EASYRAG_KG_BASE_URL", None)
+        try:
+            self.assertFalse(has_kg_model_config())
+            os.environ["EASYRAG_KG_MODEL_NAME"] = "gpt-4.1-mini"
+            self.assertTrue(has_kg_model_config())
+            os.environ.pop("EASYRAG_KG_MODEL_NAME", None)
+            os.environ["EASYRAG_KG_API_KEY"] = "kg-key"
+            self.assertTrue(has_kg_model_config())
+        finally:
+            if old_openai is None:
+                os.environ.pop("OPENAI_API_KEY", None)
+            else:
+                os.environ["OPENAI_API_KEY"] = old_openai
+            if old_kg_key is None:
+                os.environ.pop("EASYRAG_KG_API_KEY", None)
+            else:
+                os.environ["EASYRAG_KG_API_KEY"] = old_kg_key
+            if old_kg_model is None:
+                os.environ.pop("EASYRAG_KG_MODEL_NAME", None)
+            else:
+                os.environ["EASYRAG_KG_MODEL_NAME"] = old_kg_model
+            if old_kg_base_url is None:
+                os.environ.pop("EASYRAG_KG_BASE_URL", None)
+            else:
+                os.environ["EASYRAG_KG_BASE_URL"] = old_kg_base_url
 
     def test_kg_entity_types_can_be_configured(self) -> None:
         old_value = os.environ.get("EASYRAG_KG_ENTITY_TYPES")

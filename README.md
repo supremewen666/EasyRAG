@@ -122,6 +122,36 @@ Delete the indexed artifacts for one document:
 python scripts/build_index.py --action delete --doc-id <doc_id>
 ```
 
+Build against the tiny bundled sample corpus instead of the full repository:
+
+```bash
+EASYRAG_REPO_ROOT=/Users/supremewen/EasyRAG/sample_data python scripts/build_index.py --action rebuild
+```
+
+Import a compact SciFact evaluation sample into `sample_data/scifact/`:
+
+```bash
+python scripts/import_scifact_sample.py import --split train
+python scripts/import_scifact_sample.py show
+EASYRAG_REPO_ROOT=/Users/supremewen/EasyRAG/sample_data/scifact python scripts/build_index.py --action rebuild
+python scripts/eval_scifact.py --eval-root /Users/supremewen/EasyRAG/sample_data/scifact
+```
+
+The importer writes sampled `corpus.json`, `queries.json`, `qrels.json`, materialized `docs/*.md`, and `eval_cases.json` so you can inspect, index, and evaluate a small retrieval benchmark locally.
+
+Export the full SciFact corpus into repository-local files:
+
+```bash
+python scripts/import_scifact_sample.py import-full
+python scripts/import_scifact_sample.py show-full
+EASYRAG_REPO_ROOT=/Users/supremewen/EasyRAG/sample_data/scifact_full python scripts/build_index.py --action rebuild
+python scripts/eval_scifact.py --eval-root /Users/supremewen/EasyRAG/sample_data/scifact_full --split train
+```
+
+The full export writes one markdown file per SciFact corpus document under `sample_data/scifact_full/docs/`, plus `queries.json`, `qrels_train.json`, and `qrels_test.json`.
+
+The eval script groups qrels by query, rebuilds expected `doc_id` values from the current `repo_root`, and prints an alignment summary before reporting `hit_rate`, `recall_at_k`, `precision_at_k`, and `mrr_at_k`. By default it follows the active EasyRAG `workspace` and `working_dir` config, so it lines up with `scripts/build_index.py`. If your benchmark root and indexed root differ, pass `--repo-root` and `--working-dir` explicitly.
+
 ### 4. Plug in real models
 
 Many notebooks start with deterministic stubs or fallback backends so you can build the right mental model first. When you are ready to connect real providers, just configure OpenAI-compatible environment variables. The project already exposes provider hooks for querying, embeddings, reranking, and KG extraction.
@@ -194,7 +224,7 @@ Supporting docs:
 | [docs/principles/](docs/principles)              | Topic-focused method notes such as chunking, hybrid retrieval, packing, and evaluation | When you want to go deep on one subject                                  |
 | [docs/engineering/](docs/engineering)            | Code structure, runtime flow, and extension points                                     | When you want to move from teaching material into implementation details |
 | [scripts/build_index.py](scripts/build_index.py) | Index build and maintenance script                                                     | When you want to move from demo mode to a real repo-level workflow       |
-| [sample_data/](sample_data)                      | Small sample corpora                                                                   | When you want to inspect artifacts on a tiny dataset                     |
+| [sample_data/](sample_data)                      | Small sample corpora and imported eval samples                                          | When you want to inspect artifacts on a tiny dataset                     |
 | [examples/README.md](examples/README.md)         | Example script directory                                                               | When you want to see where future script-based entry points may go       |
 
 

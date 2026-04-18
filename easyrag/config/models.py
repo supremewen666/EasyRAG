@@ -172,7 +172,14 @@ def has_rerank_model_config() -> bool:
 def has_kg_model_config() -> bool:
     """Return whether KG extraction model calls are configured."""
 
-    return bool(get_kg_api_key())
+    explicit_key = bool(os.getenv("EASYRAG_KG_API_KEY", "").strip())
+    explicit_model = bool(os.getenv("EASYRAG_KG_MODEL_NAME", "").strip())
+    explicit_base_url = bool(os.getenv("EASYRAG_KG_BASE_URL", "").strip())
+    if explicit_key:
+        return True
+    if explicit_model or explicit_base_url:
+        return bool(get_kg_api_key())
+    return False
 
 
 def has_openai_compatible_config() -> bool:
